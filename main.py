@@ -943,7 +943,6 @@ class Droid(pg.sprite.Sprite):
         self.is_firing = False
         self.bolt_last = pg.time.get_ticks()
         self.attack_cooldown = 800
-        self.atk_speed = 5.3
         self.vel_x = 1
         self.vel_y = 1
         self.points = 225
@@ -984,8 +983,8 @@ class Droid(pg.sprite.Sprite):
             if now - self.bolt_last >= self.attack_cooldown:
                 self.bolt_last = now
                 angle = math.atan2(Game.p1.rect.y - self.rect.y, Game.p1.rect.x - self.rect.x)
-                dx = math.cos(angle) * self.atk_speed
-                dy = math.sin(angle) * self.atk_speed
+                dx = math.cos(angle) 
+                dy = math.sin(angle) 
                 Game.bolt_group.add(Bolt(Game.bolt_image, self.rect.center, dx, dy))
 
 class Worm(pg.sprite.Sprite):
