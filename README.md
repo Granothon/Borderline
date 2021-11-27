@@ -1,2 +1,2 @@
 Art / assets by Luis Zuno (@ansimuz)
-Code and design by Risto Ruuskanen (Granothon#0892)
+Code, music, sounds and design by Risto Ruuskanen (Granothon#0892)
