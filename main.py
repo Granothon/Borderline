@@ -23,14 +23,12 @@ class Main():
         icon = pg.image.load('assets/ships/ship 01/ship.png').convert_alpha()
         pg.display.set_icon(icon)
 
-        #load font
-        font_size = 30
-        font_scores_size = 25
-        menu_font_size = 45
-        self.font = pg.font.Font("assets/fonts/Audiowide.ttf", font_size)
-        self.font_scores = pg.font.Font("assets/fonts/Audiowide.ttf", font_scores_size)
-        self.menu_font = pg.font.Font("assets/fonts/Audiowide.ttf", menu_font_size) #TODO: not used?
-
+        #set fps
+        self.clock = pg.time.Clock()
+        self.prev_time = pg.time.get_ticks()
+        self.fps = 60 #0 = no limit
+        self.target_fps = 60 #this is what my current values are set with
+        
         #set background
         self.bg = pg.image.load('assets/background/stage-back.png').convert()
         self.bg_back_layer = pg.image.load('assets/background/layer_back.png').convert_alpha()
@@ -46,6 +44,16 @@ class Main():
         self.bg_back_i = 0
         self.bg_middle_i = 0
         self.bg_front_i = 0
+
+        #sprite groups
+        self.menu_group = pg.sprite.Group()
+        self.p1_group = pg.sprite.Group()
+        self.enemy_group = pg.sprite.Group()
+        self.boss_group = pg.sprite.Group()
+        self.bullet_group = pg.sprite.Group()
+        self.bolt_group = pg.sprite.Group()
+        self.explosion_group = pg.sprite.Group()
+        self.power_up_group = pg.sprite.Group()
 
         #load player ship images
         p1_size = 58
@@ -64,9 +72,22 @@ class Main():
         self.p1_thrust = pg.transform.scale(self.p1_thrust, (thrust_size, thrust_size))
         self.p1_thrust2 = pg.transform.scale(self.p1_thrust2, (thrust_size, thrust_size))
         self.p1_image_menu = pg.transform.scale(self.p1_image_menu, (150, 150))
+        
+        #add player 
+        self.p1 = Player(self.p1_image, self.p1_image_left, self.p1_image_right, self.p1_thrust, self.p1_thrust2, self.scr_w // 2, self.scr_h - (self.scr_h // 10))
+        self.p1_group.add(self.p1)
 
-        #set required score for different enemy spawnings
-        self.e_spawn_points = [1000, 2500, 3500, 7000, 10000]
+        #add start animation
+        self.menu_animation = Ship_animation_menu(self.p1_image_menu, -100, (self.scr_w // 2) - 200)
+        self.menu_group.add(self.menu_animation)
+        #instructions page
+        self.instructions = False
+        self.game_begin = False #this will wait for instructions to be passed first
+        self.instructions_start = pg.time.get_ticks()
+        self.instructions_start_cd = 1600
+        self.inst_txt_idx = 0
+        self.inst_cd = 5000
+        self.inst_last = pg.time.get_ticks()
         
         #load enemy ship images
         #fighter:
@@ -102,6 +123,8 @@ class Main():
 
         #boss:
         self.boss_spawned = False
+        self.boss_dead = False
+        self.escape_pod = None
         self.boss_ship_sprites = []
         self.boss_ray_sprites = []
         self.boss_thrust_sprites = []
@@ -120,8 +143,10 @@ class Main():
             image = pg.image.load(f'assets/enemy_ships/boss/thrust/{i}.png').convert_alpha()
             image = pg.transform.scale(image, (boss_size, boss_size * 0.375))
             self.boss_thrust_sprites.append(image)
-        
 
+        #add boss
+        self.e_boss = Boss(self.boss_ship_sprites, self.scr_w // 2, -180)
+        
         #load bullet image
         bullet_size = 5
         self.bullet_sprites = []
@@ -154,46 +179,23 @@ class Main():
             image = (pg.image.load(f'assets/power_up/weapon_up_{i}.png')).convert_alpha()
             image = pg.transform.scale(image, (weapon_up_size, weapon_up_size))
             self.weapon_up_sprites.append(image)
-         
-        #set fps
-        self.clock = pg.time.Clock()
-        self.prev_time = pg.time.get_ticks()
-        self.fps = 60 #0 = no limit
-        self.target_fps = 60 #this is what my current values are set with
 
-        #sprite groups
-        self.menu_group = pg.sprite.Group()
-        self.p1_group = pg.sprite.Group()
-        self.enemy_group = pg.sprite.Group()
-        self.boss_group = pg.sprite.Group()
-        self.bullet_group = pg.sprite.Group()
-        self.bolt_group = pg.sprite.Group()
-        self.explosion_group = pg.sprite.Group()
-        self.power_up_group = pg.sprite.Group()
-        
-        #add start animation
-        self.menu_animation = Ship_animation_menu(self.p1_image_menu, -100, (self.scr_w // 2) - 200)
-        self.menu_group.add(self.menu_animation)
-        #instructions page
-        self.instructions = False
-        self.game_begin = False #this will wait for instructions to be passed first
-        self.instructions_start = pg.time.get_ticks()
-        self.instructions_start_cd = 1600
-        self.inst_txt_idx = 0
-        self.inst_cd = 5000
-        self.inst_last = pg.time.get_ticks()
+        #set required score for different enemy spawnings
+        self.e_spawn_points = [1000, 2500, 3500, 7000, 10000]
 
-        #add player 
-        self.p1 = Player(self.p1_image, self.p1_image_left, self.p1_image_right, self.p1_thrust, self.p1_thrust2, self.scr_w // 2, self.scr_h - (self.scr_h // 10))
-        self.p1_group.add(self.p1)
-
-        #init Boss
-        self.e_boss = Boss(self.boss_ship_sprites, self.scr_w // 2, -180)
+        #load font
+        font_size = 30
+        font_scores_size = 25
+        self.font = pg.font.Font("assets/fonts/Audiowide.ttf", font_size)
+        self.font_scores = pg.font.Font("assets/fonts/Audiowide.ttf", font_scores_size)
                
         #texts
         self.inst_txt = ["Welcome to Borderline, Commander", "Instructions:", "Movement: Arrow Keys", "Fire: Spacebar", "Good Luck!"]
         self.p1_score_text = self.font_scores.render(f"Score: {self.p1.score}", True, (255, 255, 255))
         #self.p1_score_high = self.font.render(f"Highscore: {self.p1_highscore}", True, (255, 255, 255)) #TODO: add file reading/writing and blit this
+        self.txt_escape_pod = "I'll get you later!!"
+        self.txt_escape_pod_display = self.font_scores.render(self.txt_escape_pod, True, (255, 255, 255))
+        self.txt_escape_pod_length = self.font_scores.size(f'{self.txt_escape_pod}')[0] // 2
 
         #sounds
         self.sound_flight = pg.mixer.Sound('assets/sounds/flight.wav')
@@ -206,7 +208,7 @@ class Main():
         self.sound_explosion = pg.mixer.Sound('assets/sounds/explosion.wav')
         self.sound_escape_pod = pg.mixer.Sound('assets/sounds/escape_pod.wav')
         self.sound_victory = pg.mixer.Sound('assets/sounds/victory.wav') #TODO: add this
- 
+
     #main menu
     def menu(self):
         while True:
@@ -320,24 +322,24 @@ class Main():
 
         #spawning of enemies
         if self.game_begin:
-            if self.p1.score <= self.e_spawn_points[0]:
-                self.spawn_e1()
-            elif self.p1.score <= self.e_spawn_points[1]:
-                if not self.weapon_up_spawned:
-                    self.weapon_up_spawned = True
-                    self.spawn_weapon_up() #spawn power u
-                self.spawn_e2()
-            if self.p1.score >= self.e_spawn_points[2] and self.p1.weapon_lvl == 0 and not self.weapon_up_spawned_2:
-                    self.spawn_weapon_up() #second chance :D
-                    self.weapon_up_spawned_2 = True
-            elif self.p1.score <= self.e_spawn_points[2]:
-                self.spawn_e1()
-            elif self.p1.score <= self.e_spawn_points[3]:
-                self.spawn_e2()
-            elif self.p1.score <= self.e_spawn_points[4]:
-                self.spawn_e1()
-                self.spawn_e2()
-            else:
+            #if self.p1.score <= self.e_spawn_points[0]:
+            #    self.spawn_e1()
+            #elif self.p1.score <= self.e_spawn_points[1]:
+            #    if not self.weapon_up_spawned:
+            #        self.weapon_up_spawned = True
+            #        self.spawn_weapon_up() #spawn power u
+            #    self.spawn_e2()
+            #if self.p1.score >= self.e_spawn_points[2] and self.p1.weapon_lvl == 0 and not self.weapon_up_spawned_2:
+            #        self.spawn_weapon_up() #second chance :D
+            #        self.weapon_up_spawned_2 = True
+            #elif self.p1.score <= self.e_spawn_points[2]:
+            #    self.spawn_e1()
+            #elif self.p1.score <= self.e_spawn_points[3]:
+            #    self.spawn_e2()
+            #elif self.p1.score <= self.e_spawn_points[4]:
+            #    self.spawn_e1()
+            #    self.spawn_e2()
+            #else:
                 self.spawn_boss() #\o/
     
         #movement and removing of bullets
@@ -360,7 +362,7 @@ class Main():
                 enemy.kill()
             #keep enemies moving   
             enemy.update()
-        
+       
         #movement and removing of boss(enemy)
         if self.boss_spawned:
             for enemy in self.boss_group:
@@ -441,11 +443,34 @@ class Main():
         #keeping scoretext updated inside loop 
         self.p1_score_text = self.font_scores.render(f"Score: {self.p1.score}", True, (255, 255, 255))
 
-        #draw texts
+        #instructions text rendering
+        if self.instructions:
+            now = pg.time.get_ticks()
+            txt = self.inst_txt[self.inst_txt_idx]
+            self.inst_txt_display = self.font.render(txt, True, (255, 255, 255))
+            self.inst_txt_length = self.font.size(f"{self.inst_txt[self.inst_txt_idx]}")[0] // 2 #returns width, height
+            
+            #display text
+            self.scr.blit(self.inst_txt_display, (self.scr_w // 2 - self.inst_txt_length, self.scr_h - 350))
+            
+            if now - self.inst_last >= self.inst_cd:
+                self.inst_last = now    
+                #moving on to next text
+                self.inst_txt_idx += 1 
+            
+            if self.inst_txt_idx >= 5:
+                #all texts have been displayed. Start spawning of enemies.
+                self.instructions = False
+                self.game_begin = True
+        
+        #draw other texts
         self.scr.blit(self.p1_score_text, (20, 40))
         #if not self.p1.alive: #TODO:
             #self.scr.blit(self.txt_game_over_display, (self.scr_w // 2 -self.font.size(f'{self.txt_game_over}"")[0] // 2, self.scr_h // 2))
-
+        #escape pod text
+        if self.escape_pod is not None:
+            self.scr.blit(self.txt_escape_pod_display, (self.escape_pod.rect.center[0] - self.txt_escape_pod_length, self.escape_pod.rect.center[1] - self.escape_pod.rect.height))
+        
         #draw player hp
         hp_offset_x = 12.5
         hp_offset_y = 70
@@ -479,26 +504,6 @@ class Main():
         #draw fps 
         self.scr.blit(self.update_fps(), (self.scr_w - 125,self.scr_h - 100))
 
-        #instructions text rendering
-        if self.instructions:
-            now = pg.time.get_ticks()
-            txt = self.inst_txt[self.inst_txt_idx]
-            self.inst_txt_display = self.font.render(txt, True, (255, 255, 255))
-            self.inst_txt_length = self.font.size(f"{self.inst_txt[self.inst_txt_idx]}")[0] // 2 #returns width, height
-            
-            #display text
-            self.scr.blit(self.inst_txt_display, (self.scr_w // 2 - self.inst_txt_length, self.scr_h - 350))
-            
-            if now - self.inst_last >= self.inst_cd:
-                self.inst_last = now    
-                #moving on to next text
-                self.inst_txt_idx += 1 
-            
-            if self.inst_txt_idx >= 5:
-                #all texts have been displayed. Start spawning of enemies.
-                self.instructions = False
-                self.game_begin = True
-        
         pg.display.flip()
 
 class Ship_animation_menu(pg.sprite.Sprite):
@@ -663,8 +668,10 @@ class Bullet(pg.sprite.Sprite):
                         self.kill()
                         enemy.hp -= 1
                         if enemy.hp < 1:
-                            Game.enemy_group.add(Escape_pod(Game.boss_escape_pod_img, enemy.rect.center))
+                            Game.escape_pod = Escape_pod(Game.boss_escape_pod_img, enemy.rect.center)
+                            Game.enemy_group.add(Game.escape_pod)
                             Game.boss_group.empty()
+                            Game.boss_dead = True
                             #TODO: skaalaa explosion tai tee niitä monta bossille
                             Game.sound_explosion.play()
                             Game.explosion_group.add(Explosion(Game.explosion_sprites, enemy.rect.center))
@@ -1246,7 +1253,6 @@ class Escape_pod(pg.sprite.Sprite):
             if not self.sound_played:
                 Game.sound_escape_pod.play()
                 self.sound_played = True
-        #TODO: leave a message "I'll have you later!!"
 
 if __name__ == "__main__":
     Game = Main()
