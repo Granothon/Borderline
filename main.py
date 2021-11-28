@@ -67,7 +67,6 @@ class Main():
 
         #set required score for different enemy spawnings
         self.e_spawn_points = [1000, 2500, 3500, 7000, 10000]
-        self.e_spawn_points_droid_limit = 1500 #limit when to stop spawning droids
         
         #load enemy ship images
         #fighter:
@@ -124,13 +123,15 @@ class Main():
         
 
         #load bullet image
-        bullet_size = 7
-        self.bullet_image = pg.image.load('assets/bolts/bullet_1.png').convert_alpha()
-        self.bullet_up_image = pg.image.load('assets/bolts/bullet_2.png').convert_alpha() #TODO: tee tästä välkkyväää
-        self.bullet_image = pg.transform.scale(self.bullet_image, (bullet_size, bullet_size * 2.6))
-
+        bullet_size = 5
+        self.bullet_sprites = []
+        for i in range(1,3):
+            image = pg.image.load(f'assets/bolts/bullet_{i}.png').convert_alpha()
+            image = pg.transform.scale(image, (bullet_size, bullet_size * 2.6))
+            self.bullet_sprites.append(image)
+    
         #load bolt image
-        bolt_size = 10
+        bolt_size = 11
         self.bolt_sprites = []
         for i in range(1,3):
             image = pg.image.load(f'assets/bolts/{i}.png').convert_alpha()
@@ -557,8 +558,7 @@ class Player(pg.sprite.Sprite):
         self.is_firing = False
         self.bullet_last = pg.time.get_ticks()
         self.bullet_cooldown = 100
-        self.weapon = "Left"
-        self.weapon_up = False
+        self.weapon_lvl = 0
         self.vel_x = 0
         self.score = 0
         self.lives = 3
@@ -606,28 +606,34 @@ class Player(pg.sprite.Sprite):
 
         #attack
         if self.is_firing:
-            bullet_y = self.rect.y + 4
-            bullet_y_up = self.rect.y + 17
-            now = pg.time.get_ticks()
-            if now - self.bullet_last >= self.bullet_cooldown:
-                self.bullet_last = now
-                if self.weapon == "Left":
-                    Game.sound_bullet.play()
-                    Game.bullet_group.add(Bullet(Game.bullet_image, self.rect.x + 13, bullet_y))
-                    if self.weapon_up:
-                        Game.bullet_group.add(Bullet(Game.bullet_up_image, self.rect.x + 3, bullet_y_up))
-                    self.weapon = "Right"
-                elif self.weapon == "Right":
-                    Game.sound_bullet.play()
-                    Game.bullet_group.add(Bullet(Game.bullet_image, self.rect.x + 44, bullet_y))
-                    if self.weapon_up:
-                        Game.bullet_group.add(Bullet(Game.bullet_up_image, self.rect.x + 52, bullet_y_up))
-                    self.weapon = "Left"
+            self.attack()
+    
+    def attack(self):
+        bullet_y = self.rect.y + 4
+        bullet_y_up = self.rect.y + 10
+        offset_x = 0
+        now = pg.time.get_ticks()
+        
+        if now - self.bullet_last >= self.bullet_cooldown:
+            self.bullet_last = now
+            Game.sound_bullet.play()
+            Game.bullet_group.add(Bullet(Game.bullet_sprites, self.rect.x + 13, bullet_y))
+            Game.bullet_group.add(Bullet(Game.bullet_sprites, self.rect.x + 44, bullet_y))
+
+            if self.weapon_lvl > 0:
+                for _ in range(self.weapon_lvl):
+                    Game.bullet_group.add(Bullet(Game.bullet_sprites, self.rect.x + 3 - offset_x, bullet_y_up))
+                    Game.bullet_group.add(Bullet(Game.bullet_sprites, self.rect.x + 52 + offset_x, bullet_y_up))
+                    offset_x += 8
+                    bullet_y_up += 6
 
 class Bullet(pg.sprite.Sprite):
-    def __init__(self, image, x, y):
+    def __init__(self, images: list, x, y):
         super().__init__()
-        self.image = image
+        self.images = images
+        self.image = self.images[0]
+        self.counter = 0
+        self.index = 0
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
         self.radius = self.rect.width * 0.6
@@ -663,6 +669,23 @@ class Bullet(pg.sprite.Sprite):
                             Game.explosion_group.add(Explosion(Game.explosion_sprites, enemy.rect.center))
                             #add scores
                             Game.p1.score += enemy.points
+        
+        #animation
+        fps = 6 #bigger number means it stays longer in one frame -> slower animation
+        self.counter += 1
+
+        if self.counter >= fps and self.index < len(self.images) - 1:
+            self.counter = 0
+            
+            #next image
+            self.index += 1
+            self.image = self.images[self.index]
+        
+        #animation is complete, all images have been used -> restart animation
+        if self.counter >= fps and self.index >= len(self.images) - 1:
+            self.index = 0
+            self.counter = 0
+            self.image = self.images[self.index]
 
         self.rect.y -= self.bullet_speed
 
@@ -816,7 +839,7 @@ class Weapon_up(pg.sprite.Sprite):
         if pg.sprite.collide_circle(self, Game.p1):
             #collision
             Game.sound_weapon_up.play()
-            Game.p1.weapon_up = True #yay!
+            Game.p1.weapon_lvl += 1 #yay!
             self.kill()
          
         #animation
@@ -1049,10 +1072,13 @@ class Boss(pg.sprite.Sprite):
         self.in_position = False
         #pattern 1 (bolts)
         self.is_firing_1 = False 
-        self.pattern_1 = [(0,1), (1,0), (0,-1), (-1,0), (1,1), (1,-1), (-1,-1), (-1,1)]
-        self.pattern_1_cooldown = 400
-        self.pattern1_last = pg.time.get_ticks()
-        #pattern 2 (bolts)
+        self.pattern_1_atk_speed = 300
+        self.pattern_1_cooldown = 5000
+        self.pattern_1_atk_last = pg.time.get_ticks()
+        self.pattern_1_last = pg.time.get_ticks()
+        self.pattern_1_no_of_shots = 5
+        self.pattern_1_shot_count = 1
+        #pattern 2 (bolts, droids)
         self.is_firing_2 = False
         self.pattern_2_cooldown = 4000
         self.pattern2_last = pg.time.get_ticks()
@@ -1060,8 +1086,6 @@ class Boss(pg.sprite.Sprite):
         self.is_firing_3 = False
         self.pattern_3_cooldown = 1000
         self.pattern3_last = pg.time.get_ticks() 
-        
-        self.bolt_last = pg.time.get_ticks() #TODO: atm used with patterns.. ?
         #speed at start
         self.vel_x = 3
         self.vel_y = 1
@@ -1114,7 +1138,7 @@ class Boss(pg.sprite.Sprite):
         self.image = self.img_ship[self.idx_ship]
 
         #stop moving if nothing happens
-        self.vel_x = 0
+        self.vel_x = 0 #TODO: tarviiko?
 
         #start firing
         if self.rect.y >= Game.scr_h // 5:
@@ -1138,17 +1162,23 @@ class Boss(pg.sprite.Sprite):
         #attack
         if self.is_firing_1:
             now = pg.time.get_ticks()
-            if now - self.bolt_last >= self.pattern_1_cooldown:
-                self.bolt_last = now
+            if now - self.pattern_1_atk_last >= self.pattern_1_atk_speed and self.pattern_1_shot_count < self.pattern_1_no_of_shots:
+                self.pattern_1_atk_last = now
                 angle_step = 360 // 24
                 for angle in range(0, 180 + 1, angle_step): #half a circle
                     radians = math.radians(angle)
                     dir_x = math.cos(radians)
                     dir_y = math.sin(radians)
                     Game.bolt_group.add(Bolt(Game.bolt_sprites, self.rect.center, dir_x, dir_y))
-        
+                self.pattern_1_shot_count +=1
+            if now - self.pattern_1_last >= self.pattern_1_cooldown:
+                self.pattern_1_last = now
+                self.pattern_1_shot_count = 0
+            else:
+                Game.spawn_weapon_up()
+                    
         if self.is_firing_2:
-            Game.spawn_e3
+            Game.spawn_e3()
         
         if self.is_firing_3:
             pass #TODO: ray
