@@ -205,6 +205,7 @@ class Main():
         #self.sound_ray = pg.mixer.Sound('assets/sounds/ray.wav')
         self.sound_explosion = pg.mixer.Sound('assets/sounds/explosion.wav')
         self.sound_escape_pod = pg.mixer.Sound('assets/sounds/escape_pod.wav')
+        self.sound_victory = pg.mixer.Sound('assets/sounds/victory.wav') #TODO: add this
  
     #main menu
     def menu(self):
