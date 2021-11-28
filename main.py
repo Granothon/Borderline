@@ -66,7 +66,7 @@ class Main():
         self.p1_image_menu = pg.transform.scale(self.p1_image_menu, (150, 150))
 
         #set required score for different enemy spawnings
-        self.e_spawn_points = [1000, 2500, 12500]
+        self.e_spawn_points = [1000, 2500, 3500, 7000, 10000]
         self.e_spawn_points_droid_limit = 1500 #limit when to stop spawning droids
         
         #load enemy ship images
@@ -259,8 +259,17 @@ class Main():
         if now - self.e1_spawn_last >= self.e1_spawn_cooldown:
             self.e1_spawn_last = now
             self.enemy_group.add(Fighter(self.e1_image, self.e1_image_left, self.e1_image_right, self.p1.rect.center[0], - offset_y))
-                
+
     def spawn_e2(self):
+        offset_y = 50
+        worm_size = 80
+        now = pg.time.get_ticks()
+        if now - self.e3_spawn_last >= self.e3_spawn_cooldown:
+            self.e3_spawn_last = now
+            location = r.choice(range(worm_size * 2, self.scr_w - worm_size, worm_size))
+            self.enemy_group.add(Worm(self.e3_sprites, location, 0 - offset_y))
+                
+    def spawn_e3(self):
         #offset_y = 50
         now = pg.time.get_ticks()
         if now - self.e2_spawn_last >= self.e2_spawn_cooldown:
@@ -271,15 +280,6 @@ class Main():
                 spawn = "Right"
             self.enemy_group.add(Droid(self.e2_sprites, spawn, location, self.scr_h // 8))
 
-    def spawn_e3(self):
-        offset_y = 50
-        worm_size = 80
-        now = pg.time.get_ticks()
-        if now - self.e3_spawn_last >= self.e3_spawn_cooldown:
-            self.e3_spawn_last = now
-            location = r.choice(range(worm_size * 2, self.scr_w - worm_size, worm_size))
-            self.enemy_group.add(Worm(self.e3_sprites, location, 0 - offset_y))
-    
     def spawn_boss(self): #\o/
         #spawns only once lol
         if not self.boss_spawned:
@@ -309,11 +309,8 @@ class Main():
                     exit()
 
     def update(self):
-        self.clock.tick(self.fps)
+        self.dt = self.clock.tick(self.fps) * 0.001
         now = pg.time.get_ticks()
-        self.dt = now - self.prev_time
-        self.prev_time = now
-
         #setting delay for instruction text
         if not self.instructions and not self.game_begin:
             if now - self.instructions_start >= self.instructions_start_cd:
@@ -323,18 +320,22 @@ class Main():
         if self.game_begin:
             if self.p1.score <= self.e_spawn_points[0]:
                 self.spawn_e1()
-            if self.p1.score >= self.e_spawn_points[1] and self.p1.score <= self.e_spawn_points[1] + self.e_spawn_points_droid_limit:
+            elif self.p1.score <= self.e_spawn_points[1]:
                 if not self.weapon_up_spawned:
                     self.weapon_up_spawned = True
-                    self.spawn_weapon_up() #spawn power up
+                    self.spawn_weapon_up() #spawn power u
                 self.spawn_e2()
-            if self.p1.score >= self.e_spawn_points[0] and self.p1.score <= self.e_spawn_points[2]:
-                self.e_spawn_points_droid = self.e_spawn_points[0]
-                if not self.p1.weapon_up and not self.weapon_up_spawned_2:
+            if self.p1.score >= self.e_spawn_points[2] and not self.p1.weapon_up and not self.weapon_up_spawned_2:
                     self.spawn_weapon_up() #second chance :D
                     self.weapon_up_spawned_2 = True
-                self.spawn_e3()
-            if self.p1.score >= self.e_spawn_points[2]:
+            elif self.p1.score <= self.e_spawn_points[2]:
+                self.spawn_e1()
+            elif self.p1.score <= self.e_spawn_points[3]:
+                self.spawn_e2()
+            elif self.p1.score <= self.e_spawn_points[4]:
+                self.spawn_e1()
+                self.spawn_e2()
+            else:
                 self.spawn_boss() #\o/
     
         #movement and removing of bullets
@@ -405,11 +406,11 @@ class Main():
         #the screen size has to divide evenly with speed 
         #width / length: 864, 1080
         
-        self.bg_i += 0 * self.dt * self.target_fps #at the moment looks best when real background is not scrolling
+        self.bg_i += 0  #at the moment looks best when real background is not scrolling
         if not self.boss_spawned:
-            self.bg_back_i += 0.5 * self.dt * self.target_fps
-            self.bg_middle_i += 1.5 * self.dt * self.target_fps
-            self.bg_front_i += 3 * self.dt * self.target_fps
+            self.bg_back_i += 0.5 
+            self.bg_middle_i += 1
+            self.bg_front_i += 2.5
 
         #draw player
         if self.p1.move_left:
@@ -1053,9 +1054,11 @@ class Boss(pg.sprite.Sprite):
         self.pattern1_last = pg.time.get_ticks()
         #pattern 2 (bolts)
         self.is_firing_2 = False
+        self.pattern_2_cooldown = 4000
         self.pattern2_last = pg.time.get_ticks()
         #pattern 3 (ray)
         self.is_firing_3 = False
+        self.pattern_3_cooldown = 1000
         self.pattern3_last = pg.time.get_ticks() 
         
         self.bolt_last = pg.time.get_ticks() #TODO: atm used with patterns.. ?
@@ -1116,14 +1119,17 @@ class Boss(pg.sprite.Sprite):
         #start firing
         if self.rect.y >= Game.scr_h // 5:
             self.in_position = True
-        if self.in_position and self.idx_ship == 0:
-            self.is_firing_1 = True
-        elif self.stages == 1:
-            self.is_firing_2 = True
-        elif self.stages == 2:
-            self.is_firing_3 = True
-        elif self.stages >= 3:
-            pass #TODO: tuleeko tähän jotain.. vika stage ainaki vaa odottaa tuhoutumistaan ja voi vähän räjähdellä
+        if self.in_position:
+            if self.idx_ship == 0:
+                self.is_firing_1 = True
+            elif self.idx_ship == 1:
+                self.is_firing_1 = False
+                self.is_firing_2 = True
+            elif self.idx_ship == 2:
+                self.is_firing_2 = False
+                self.is_firing_3 = True
+            elif self.idx_ship >= 3:
+                pass #TODO: tuleeko tähän jotain.. vika stage ainaki vaa odottaa tuhoutumistaan ja voi vähän räjähdellä
         
         #self.rect.x += self.vel_x
         if self.rect.y < Game.scr_h // 5:
@@ -1134,12 +1140,19 @@ class Boss(pg.sprite.Sprite):
             now = pg.time.get_ticks()
             if now - self.bolt_last >= self.pattern_1_cooldown:
                 self.bolt_last = now
-                angle_step = 360 // 12
-                for angle in range(0, 180, angle_step): #half a circle
+                angle_step = 360 // 24
+                for angle in range(0, 180 + 1, angle_step): #half a circle
                     radians = math.radians(angle)
                     dir_x = math.cos(radians)
                     dir_y = math.sin(radians)
                     Game.bolt_group.add(Bolt(Game.bolt_sprites, self.rect.center, dir_x, dir_y))
+        
+        if self.is_firing_2:
+            Game.spawn_e3
+        
+        if self.is_firing_3:
+            pass #TODO: ray
+
 
 class Boss_thrusters(pg.sprite.Sprite):
     def __init__(self, images: list):
