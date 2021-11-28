@@ -2,6 +2,7 @@
 import pygame as pg
 from pygame import Color
 import random as r
+from time import time
 import math
 
 
@@ -105,9 +106,7 @@ class Main():
         self.boss_ship_sprites = []
         self.boss_ray_sprites = []
         self.boss_thrust_sprites = []
-        self.boss_bolt_sprites = []
         boss_size = 400
-        boss_bolt_size = 15
         self.boss_escape_pod_img = pg.image.load(f'assets/enemy_ships/boss/ship/escape_pod.png').convert_alpha()
         self.boss_escape_pod_img = pg.transform.scale(self.boss_escape_pod_img, (boss_size // 10, (boss_size // 10) * 2))
         for i in range(1,6):
@@ -122,10 +121,7 @@ class Main():
             image = pg.image.load(f'assets/enemy_ships/boss/thrust/{i}.png').convert_alpha()
             image = pg.transform.scale(image, (boss_size, boss_size * 0.375))
             self.boss_thrust_sprites.append(image)
-        for i in range(1,3):
-            image = pg.image.load(f'assets/bolts/{i}.png').convert_alpha()
-            image = pg.transform.scale(image, (boss_bolt_size, boss_bolt_size))
-            self.boss_bolt_sprites.append(image)
+        
 
         #load bullet image
         bullet_size = 7
@@ -135,8 +131,11 @@ class Main():
 
         #load bolt image
         bolt_size = 10
-        self.bolt_image = pg.image.load('assets/bolts/1.png').convert_alpha()
-        self.bolt_image = pg.transform.scale(self.bolt_image, (bolt_size, bolt_size))
+        self.bolt_sprites = []
+        for i in range(1,3):
+            image = pg.image.load(f'assets/bolts/{i}.png').convert_alpha()
+            image = pg.transform.scale(image, (bolt_size, bolt_size))
+            self.bolt_sprites.append(image)
 
         #load explosion animation
         self.explosion_sprites = []
@@ -157,7 +156,9 @@ class Main():
          
         #set fps
         self.clock = pg.time.Clock()
-        self.fps = 60 #TODO: add dt properly
+        self.prev_time = pg.time.get_ticks()
+        self.fps = 60 #0 = no limit
+        self.target_fps = 60 #this is what my current values are set with
 
         #sprite groups
         self.menu_group = pg.sprite.Group()
@@ -197,12 +198,12 @@ class Main():
         self.sound_flight = pg.mixer.Sound('assets/sounds/flight.wav')
         self.sound_bullet = pg.mixer.Sound('assets/sounds/bullet.wav')
         self.sound_bullet.set_volume(0.5)
-        self.sound_bolt = pg.mixer.Sound('assets/sounds/bolt.wav')
-        self.sound_power_up = pg.mixer.Sound('assets/sounds/power_up.wav')
+        #self.sound_bolt = pg.mixer.Sound('assets/sounds/bolt.wav') #TODO: not in use, remove? or make one
+        #self.sound_power_up = pg.mixer.Sound('assets/sounds/power_up.wav')
         self.sound_weapon_up = pg.mixer.Sound('assets/sounds/weapon_up.wav')
-        self.sound_ray = pg.mixer.Sound('assets/sounds/ray.wav')
+        #self.sound_ray = pg.mixer.Sound('assets/sounds/ray.wav')
         self.sound_explosion = pg.mixer.Sound('assets/sounds/explosion.wav')
-        self.sound_escape_pod = pg.mixer.Sound('assets/sounds/robot.wav')
+        self.sound_escape_pod = pg.mixer.Sound('assets/sounds/escape_pod.wav')
  
     #main menu
     def menu(self):
@@ -211,10 +212,10 @@ class Main():
             self.menu_update()
         
     def menu_update(self):
-        self.dt = self.clock.tick(self.fps)
+        self.dt = self.clock.tick(self.fps) * 0.001
+
         self.scr.fill((0,0,0))
         self.scr.blit(self.bg, (0, 0))
-
         if len(self.menu_group) != 0:
             #start animation
             self.menu_group.draw(self.scr)
@@ -308,11 +309,13 @@ class Main():
                     exit()
 
     def update(self):
-        self.dt = self.clock.tick(self.fps)
+        self.clock.tick(self.fps)
+        now = pg.time.get_ticks()
+        self.dt = now - self.prev_time
+        self.prev_time = now
 
         #setting delay for instruction text
         if not self.instructions and not self.game_begin:
-            now = pg.time.get_ticks()
             if now - self.instructions_start >= self.instructions_start_cd:
                 self.instructions = True
 
@@ -402,11 +405,11 @@ class Main():
         #the screen size has to divide evenly with speed 
         #width / length: 864, 1080
         
-        self.bg_i += 0 #at the moment looks best when real background is not scrolling
+        self.bg_i += 0 * self.dt * self.target_fps #at the moment looks best when real background is not scrolling
         if not self.boss_spawned:
-            self.bg_back_i += 0.5
-            self.bg_middle_i += 1.5
-            self.bg_front_i += 3
+            self.bg_back_i += 0.5 * self.dt * self.target_fps
+            self.bg_middle_i += 1.5 * self.dt * self.target_fps
+            self.bg_front_i += 3 * self.dt * self.target_fps
 
         #draw player
         if self.p1.move_left:
@@ -510,8 +513,8 @@ class Ship_animation_menu(pg.sprite.Sprite):
 
     def update(self):
         #move ship
-        self.rect.x += self.vel_x 
-        self.rect.y += self.vel_y
+        self.rect.x += self.vel_x * Game.dt * Game.target_fps
+        self.rect.y += self.vel_y * Game.dt * Game.target_fps
 
         #sound
         if self.play_1:
@@ -663,9 +666,12 @@ class Bullet(pg.sprite.Sprite):
         self.rect.y -= self.bullet_speed
 
 class Bolt(pg.sprite.Sprite):
-    def __init__(self, image, coords, dx, dy): #TODO: laita kaikki x, y = coords mitä syötetään classeille.
+    def __init__(self, images: list, coords, dx, dy): #TODO: laita kaikki x, y = coords mitä syötetään classeille.
         super().__init__()
-        self.image = image
+        self.images = images
+        self.image = self.images[0]
+        self.index = 0
+        self.counter = 0
         self.rect = self.image.get_rect()
         self.rect.center = coords
         self.speed = 5.3 #same as player ship speed
@@ -691,53 +697,8 @@ class Bolt(pg.sprite.Sprite):
         self.rect.x += self.speed * self.dx
         self.rect.y += self.speed * self.dy
 
-class Bolt_boss(pg.sprite.Sprite):
-    def __init__(self, images: list, x, y, dx, dy):
-        super().__init__()
-        self.index = 0
-        self.counter = 0
-        self.images = images
-        self.image = self.images[self.index]
-        self.rect = self.image.get_rect()
-        self.rect.center = (x, y)
-        self.radius = self.rect.width * 0.5
-        self.speed = 5.3 #same as player ship speed
-        
-        #firing patterns
-        if Game.e_boss.is_firing_1:
-            self.vel_x = dx * self.speed
-            self.vel_y = dy * self.speed
-
-        elif Game.e_boss.is_firing_2:
-            self.angle = math.atan2(Game.p1.rect.center[1] - self.rect.y, Game.p1.rect.center[0] - self.rect.x)
-            self.vel_x = math.cos(self.angle) * self.speed
-            self.vel_y = math.sin(self.angle) * self.speed
-        
-        elif Game.e_boss.is_firing_3:
-            pass
-            #TODO: 
-    
-    def update(self):
-        #check for collisions
-        if Game.p1.alive:
-            if pg.sprite.collide_circle(self, Game.p1):
-                #collision
-                self.kill()
-                Game.p1.hp -= 1
-                if Game.p1.hp < 1:
-                    Game.explosion_group.add(Explosion(Game.explosion_sprites, Game.p1.rect.center))
-                    if Game.p1.lives > 0:
-                        Game.p1.lives -= 1
-                        Game.p1.hp = Game.p1.max_hp
-                    else:    
-                        Game.p1.alive = False
-                        Game.p1.kill() 
-        
-        self.rect.x += self.vel_x
-        self.rect.y += self.vel_y
-
         #animation
-        fps = 8 #bigger number means it stays longer in one frame -> slower animation
+        fps = 10 #bigger number means it stays longer in one frame -> slower animation
         self.counter += 1
 
         if self.counter >= fps and self.index < len(self.images) - 1:
@@ -922,7 +883,7 @@ class Fighter(pg.sprite.Sprite):
             now = pg.time.get_ticks()
             if now - self.bolt_last >= self.shots_cooldown and self.shot_count < self.no_of_shots:
                 self.bolt_last = now
-                Game.bolt_group.add(Bolt(Game.bolt_image, self.rect.center, dx, dy))
+                Game.bolt_group.add(Bolt(Game.bolt_sprites, self.rect.center, dx, dy))
                 self.shot_count +=1
             if now - self.attack_last >= self.attack_cooldown:
                 self.attack_last = now
@@ -985,7 +946,7 @@ class Droid(pg.sprite.Sprite):
                 angle = math.atan2(Game.p1.rect.y - self.rect.y, Game.p1.rect.x - self.rect.x)
                 dx = math.cos(angle) 
                 dy = math.sin(angle) 
-                Game.bolt_group.add(Bolt(Game.bolt_image, self.rect.center, dx, dy))
+                Game.bolt_group.add(Bolt(Game.bolt_sprites, self.rect.center, dx, dy))
 
 class Worm(pg.sprite.Sprite):
     def __init__(self, images: list, x, y):
@@ -1070,7 +1031,7 @@ class Worm(pg.sprite.Sprite):
                     radians = math.radians(angle)
                     dir_x = math.cos(radians)
                     dir_y = math.sin(radians)
-                    Game.bolt_group.add(Bolt(Game.bolt_image, self.rect.center, dir_x, dir_y))
+                    Game.bolt_group.add(Bolt(Game.bolt_sprites, self.rect.center, dir_x, dir_y))
 
 class Boss(pg.sprite.Sprite):
     def __init__(self, img_ship: list, x, y):
@@ -1087,16 +1048,17 @@ class Boss(pg.sprite.Sprite):
         self.in_position = False
         #pattern 1 (bolts)
         self.is_firing_1 = False 
-        self.pattern_1_cooldown = 1000
         self.pattern_1 = [(0,1), (1,0), (0,-1), (-1,0), (1,1), (1,-1), (-1,-1), (-1,1)]
+        self.pattern_1_cooldown = 400
+        self.pattern1_last = pg.time.get_ticks()
         #pattern 2 (bolts)
         self.is_firing_2 = False
+        self.pattern2_last = pg.time.get_ticks()
         #pattern 3 (ray)
         self.is_firing_3 = False
-        self.pattern1_last = pg.time.get_ticks()
-        self.pattern2_last = pg.time.get_ticks()
         self.pattern3_last = pg.time.get_ticks() 
-        self.bolt_last = pg.time.get_ticks() #TODO: fix this with patterns if needed - not: remove
+        
+        self.bolt_last = pg.time.get_ticks() #TODO: atm used with patterns.. ?
         #speed at start
         self.vel_x = 3
         self.vel_y = 1
@@ -1169,12 +1131,15 @@ class Boss(pg.sprite.Sprite):
         
         #attack
         if self.is_firing_1:
-            bolt_x, bolt_y = self.rect.center
             now = pg.time.get_ticks()
             if now - self.bolt_last >= self.pattern_1_cooldown:
                 self.bolt_last = now
-                for coord in self.pattern_1:
-                    Game.bolt_group.add(Bolt_boss(Game.boss_bolt_sprites, bolt_x, bolt_y, coord[0], coord[1]))
+                angle_step = 360 // 12
+                for angle in range(0, 180, angle_step): #half a circle
+                    radians = math.radians(angle)
+                    dir_x = math.cos(radians)
+                    dir_y = math.sin(radians)
+                    Game.bolt_group.add(Bolt(Game.bolt_sprites, self.rect.center, dir_x, dir_y))
 
 class Boss_thrusters(pg.sprite.Sprite):
     def __init__(self, images: list):
