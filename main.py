@@ -326,7 +326,7 @@ class Main():
                     self.weapon_up_spawned = True
                     self.spawn_weapon_up() #spawn power u
                 self.spawn_e2()
-            if self.p1.score >= self.e_spawn_points[2] and not self.p1.weapon_up and not self.weapon_up_spawned_2:
+            if self.p1.score >= self.e_spawn_points[2] and self.p1.weapon_lvl == 0 and not self.weapon_up_spawned_2:
                     self.spawn_weapon_up() #second chance :D
                     self.weapon_up_spawned_2 = True
             elif self.p1.score <= self.e_spawn_points[2]:
