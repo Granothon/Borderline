@@ -2,10 +2,8 @@
 import pygame as pg
 from pygame import Color
 import random as r
-from time import time
 import math
-
-
+#TODO: bossin hp:tä jää paljon näkyviin wtf?.. instru tekstin eka osa liian vähän aikaa ruudulla
 class Main():
     def __init__(self):
         pg.init()
@@ -322,24 +320,24 @@ class Main():
 
         #spawning of enemies
         if self.game_begin:
-            #if self.p1.score <= self.e_spawn_points[0]:
-            #    self.spawn_e1()
-            #elif self.p1.score <= self.e_spawn_points[1]:
-            #    if not self.weapon_up_spawned:
-            #        self.weapon_up_spawned = True
-            #        self.spawn_weapon_up() #spawn power u
-            #    self.spawn_e2()
-            #if self.p1.score >= self.e_spawn_points[2] and self.p1.weapon_lvl == 0 and not self.weapon_up_spawned_2:
-            #        self.spawn_weapon_up() #second chance :D
-            #        self.weapon_up_spawned_2 = True
-            #elif self.p1.score <= self.e_spawn_points[2]:
-            #    self.spawn_e1()
-            #elif self.p1.score <= self.e_spawn_points[3]:
-            #    self.spawn_e2()
-            #elif self.p1.score <= self.e_spawn_points[4]:
-            #    self.spawn_e1()
-            #    self.spawn_e2()
-            #else:
+            if self.p1.score <= self.e_spawn_points[0]:
+                self.spawn_e1()
+            elif self.p1.score <= self.e_spawn_points[1]:
+                if not self.weapon_up_spawned:
+                    self.weapon_up_spawned = True
+                    self.spawn_weapon_up() #spawn power u
+                self.spawn_e2()
+            if self.p1.score >= self.e_spawn_points[2] and self.p1.weapon_lvl == 0 and not self.weapon_up_spawned_2:
+                    self.spawn_weapon_up() #second chance :D
+                    self.weapon_up_spawned_2 = True
+            elif self.p1.score <= self.e_spawn_points[2]:
+                self.spawn_e1()
+            elif self.p1.score <= self.e_spawn_points[3]:
+                self.spawn_e2()
+            elif self.p1.score <= self.e_spawn_points[4]:
+                self.spawn_e1()
+                self.spawn_e2()
+            else:
                 self.spawn_boss() #\o/
     
         #movement and removing of bullets
