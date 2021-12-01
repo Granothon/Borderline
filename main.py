@@ -3,7 +3,7 @@ import pygame as pg
 from pygame import Color
 import random as r
 import math
-#TODO: bossin hp:tä jää paljon näkyviin wtf?.. instru tekstin eka osa liian vähän aikaa ruudulla
+
 class Main():
     def __init__(self):
         pg.init()
@@ -50,6 +50,7 @@ class Main():
         self.boss_group = pg.sprite.Group()
         self.bullet_group = pg.sprite.Group()
         self.bolt_group = pg.sprite.Group()
+        self.eyes_of_ra_group = pg.sprite.Group()
         self.explosion_group = pg.sprite.Group()
         self.power_up_group = pg.sprite.Group()
 
@@ -81,52 +82,52 @@ class Main():
         #instructions page
         self.instructions = False
         self.game_begin = False #this will wait for instructions to be passed first
-        self.instructions_start = pg.time.get_ticks()
         self.instructions_start_cd = 1600
         self.inst_txt_idx = 0
         self.inst_cd = 5000
-        self.inst_last = pg.time.get_ticks()
         
         #load enemy ship images
         #fighter:
-        e1_size = 80
-        self.e1_image = pg.image.load("assets/enemy_ships/fighter/basic.png").convert_alpha()
-        self.e1_image_left = pg.image.load("assets/enemy_ships/fighter/left.png").convert_alpha()
-        self.e1_image_right = pg.image.load("assets/enemy_ships/fighter/right.png").convert_alpha()
-        self.e1_image = pg.transform.scale(self.e1_image, (e1_size, e1_size))
-        self.e1_image_left = pg.transform.scale(self.e1_image_left, (e1_size, e1_size))
-        self.e1_image_right = pg.transform.scale(self.e1_image_right, (e1_size, e1_size))
-        self.e1_spawn_cooldown = 3000
+        self.e1_sprites = []
+        e1_size = 90
+        for i in range(1,4):
+            image = pg.image.load(f'assets/enemy_ships/fighter/{i}.png').convert_alpha()
+            image = pg.transform.scale(image, (e1_size, e1_size))
+            self.e1_sprites.append(image)
+        self.e1_spawn_cooldown = 2750
         self.e1_spawn_last = pg.time.get_ticks()
-        
-        #droid:
-        self.e2_sprites = []
-        e2_size = 80
-        for i in range(1,5):
-            image = pg.image.load(f'assets/enemy_ships/droid/{i}.png').convert_alpha()
-            image = pg.transform.scale(image, (e2_size, e2_size))
-            self.e2_sprites.append(image)
-        self.e2_spawn_cooldown = 2000 #3 seconds
-        self.e2_spawn_last = pg.time.get_ticks()
+        self.e1_spawn_last_coords = None
 
         #worm:
-        self.e3_sprites = []
-        e3_size = 80
+        self.e2_sprites = []
+        e2_size = 90
         for i in range(1,5):
             image = pg.image.load(f'assets/enemy_ships/worm/{i}.png').convert_alpha()
+            image = pg.transform.scale(image, (e2_size, e2_size))
+            self.e2_sprites.append(image)
+        self.e2_spawn_cooldown = 2000
+        self.e2_spawn_last = pg.time.get_ticks()
+
+        #droid:
+        self.e3_sprites = []
+        e3_size = 90
+        for i in range(1,5):
+            image = pg.image.load(f'assets/enemy_ships/droid/{i}.png').convert_alpha()
             image = pg.transform.scale(image, (e3_size, e3_size))
             self.e3_sprites.append(image)
-        self.e3_spawn_cooldown = 2000 #3 seconds
+        self.e3_spawn_cooldown = 1000
         self.e3_spawn_last = pg.time.get_ticks()
 
         #boss:
         self.boss_spawned = False
-        self.boss_dead = False
         self.escape_pod = None
+        self.boss_dead = False
         self.boss_ship_sprites = []
         self.boss_ray_sprites = []
         self.boss_thrust_sprites = []
         boss_size = 400
+        ray_size = 262
+        thrust_size = 262
         self.boss_escape_pod_img = pg.image.load(f'assets/enemy_ships/boss/ship/escape_pod.png').convert_alpha()
         self.boss_escape_pod_img = pg.transform.scale(self.boss_escape_pod_img, (boss_size // 10, (boss_size // 10) * 2))
         for i in range(1,6):
@@ -135,18 +136,18 @@ class Main():
             self.boss_ship_sprites.append(image)
         for i in range(1,12):
             image = pg.image.load(f'assets/enemy_ships/boss/rays/{i}.png').convert_alpha()
-            image = pg.transform.scale(image, (boss_size, boss_size))
+            image = pg.transform.scale(image, (ray_size, ray_size * 3.5))
             self.boss_ray_sprites.append(image)
         for i in range(1,3):
             image = pg.image.load(f'assets/enemy_ships/boss/thrust/{i}.png').convert_alpha()
-            image = pg.transform.scale(image, (boss_size, boss_size * 0.375))
+            image = pg.transform.scale(image, (thrust_size, thrust_size * 0.375))
             self.boss_thrust_sprites.append(image)
 
         #add boss
         self.e_boss = Boss(self.boss_ship_sprites, self.scr_w // 2, -180)
         
         #load bullet image
-        bullet_size = 5
+        bullet_size = 6
         self.bullet_sprites = []
         for i in range(1,3):
             image = pg.image.load(f'assets/bolts/bullet_{i}.png').convert_alpha()
@@ -154,7 +155,7 @@ class Main():
             self.bullet_sprites.append(image)
     
         #load bolt image
-        bolt_size = 11
+        bolt_size = 15
         self.bolt_sprites = []
         for i in range(1,3):
             image = pg.image.load(f'assets/bolts/{i}.png').convert_alpha()
@@ -169,7 +170,7 @@ class Main():
             self.explosion_sprites.append(image)
         
         #load weapon upgrade animation
-        weapon_up_size = 80
+        weapon_up_size = 50
         self.weapon_up_spawned = False
         self.weapon_up_spawned_2 = False
         self.weapon_up_sprites = []
@@ -179,18 +180,21 @@ class Main():
             self.weapon_up_sprites.append(image)
 
         #set required score for different enemy spawnings
-        self.e_spawn_points = [1000, 2500, 3500, 7000, 10000]
+        self.e_spawn_points = [1000, 2500, 3500, 7000, 14000]
 
         #load font
         font_size = 30
         font_scores_size = 25
         self.font = pg.font.Font("assets/fonts/Audiowide.ttf", font_size)
         self.font_scores = pg.font.Font("assets/fonts/Audiowide.ttf", font_scores_size)
+
+        #load highscore
+        self.p1_highscore = self.highscore()
                
         #texts
         self.inst_txt = ["Welcome to Borderline, Commander", "Instructions:", "Movement: Arrow Keys", "Fire: Spacebar", "Good Luck!"]
         self.p1_score_text = self.font_scores.render(f"Score: {self.p1.score}", True, (255, 255, 255))
-        #self.p1_score_high = self.font.render(f"Highscore: {self.p1_highscore}", True, (255, 255, 255)) #TODO: add file reading/writing and blit this
+        self.p1_highscore_text = self.font_scores.render(f"Highscore: {self.p1_highscore}", True, (255, 255, 255))
         self.txt_escape_pod = "I'll get you later!!"
         self.txt_escape_pod_display = self.font_scores.render(self.txt_escape_pod, True, (255, 255, 255))
         self.txt_escape_pod_length = self.font_scores.size(f'{self.txt_escape_pod}')[0] // 2
@@ -199,10 +203,7 @@ class Main():
         self.sound_flight = pg.mixer.Sound('assets/sounds/flight.wav')
         self.sound_bullet = pg.mixer.Sound('assets/sounds/bullet.wav')
         self.sound_bullet.set_volume(0.5)
-        #self.sound_bolt = pg.mixer.Sound('assets/sounds/bolt.wav') #TODO: not in use, remove? or make one
-        #self.sound_power_up = pg.mixer.Sound('assets/sounds/power_up.wav')
         self.sound_weapon_up = pg.mixer.Sound('assets/sounds/weapon_up.wav')
-        #self.sound_ray = pg.mixer.Sound('assets/sounds/ray.wav')
         self.sound_explosion = pg.mixer.Sound('assets/sounds/explosion.wav')
         self.sound_escape_pod = pg.mixer.Sound('assets/sounds/escape_pod.wav')
         self.sound_victory = pg.mixer.Sound('assets/sounds/victory.wav') #TODO: add this
@@ -248,45 +249,68 @@ class Main():
         pg.mixer.music.load('assets/sounds/patrol.wav')
         pg.mixer.music.play(0, 0.0, 0)
 
+        #set time for instruction text
+        self.instructions_start = pg.time.get_ticks()
+        self.inst_last = pg.time.get_ticks()
+
         while True:
             self.process_events()
             self.update()
             self.draw()
 
+    def highscore(self) ->str:
+        '''to be used to check what highscore is at the beginning of the game and also to determine if a player made highscore at the end of the game'''
+        try:
+            with open ("assets/player/data.txt", "r") as hi:
+                hscore = hi.read().strip()
+                if self.p1.score > int(hscore):
+                    hi.close()
+                    #write new highscore to file
+                    hscore = f"{self.p1.score}"
+                    with open ("assets/player/data.txt", "w") as hi:
+                        hi.write(hscore)
+        except IOError:
+            print ("The file doesn't exist. Creating a new file.")
+            with open ("assets/player/data.txt", "w") as hi:
+                hscore = "0"
+                hi.write(hscore)
+        return hscore
+
     def spawn_e1(self):
-        #offset_x = 0
         offset_y = 50
         now = pg.time.get_ticks()
-        #location = r.choice(range(50, 600, 50))
         if now - self.e1_spawn_last >= self.e1_spawn_cooldown:
             self.e1_spawn_last = now
-            self.enemy_group.add(Fighter(self.e1_image, self.e1_image_left, self.e1_image_right, self.p1.rect.center[0], - offset_y))
+            x_coords = self.p1.rect.center[0]
+            if x_coords == self.e1_spawn_last_coords and x_coords + 150 < self.scr_w and x_coords -150 > 0:
+                x_coords += r.choice([-150, 150])
+            self.enemy_group.add(Fighter(self.e1_sprites, x_coords, - offset_y))
+            self.e1_spawn_last_coords = x_coords
 
     def spawn_e2(self):
         offset_y = 50
         worm_size = 80
         now = pg.time.get_ticks()
-        if now - self.e3_spawn_last >= self.e3_spawn_cooldown:
-            self.e3_spawn_last = now
-            location = r.choice(range(worm_size * 2, self.scr_w - worm_size, worm_size))
-            self.enemy_group.add(Worm(self.e3_sprites, location, 0 - offset_y))
-                
-    def spawn_e3(self):
-        #offset_y = 50
-        now = pg.time.get_ticks()
         if now - self.e2_spawn_last >= self.e2_spawn_cooldown:
             self.e2_spawn_last = now
+            location = r.choice(range(worm_size * 2, self.scr_w - worm_size, worm_size))
+            self.enemy_group.add(Worm(self.e2_sprites, location, 0 - offset_y))
+                
+    def spawn_e3(self):
+        now = pg.time.get_ticks()
+        if now - self.e3_spawn_last >= self.e3_spawn_cooldown:
+            self.e3_spawn_last = now
             location = r.choice([-50, self.scr_h + 50])
             if location < 0: spawn = "Left"
             else:
                 spawn = "Right"
-            self.enemy_group.add(Droid(self.e2_sprites, spawn, location, self.scr_h // 8))
+            self.enemy_group.add(Droid(self.e3_sprites, spawn, location, self.scr_h // 9))
 
     def spawn_boss(self): #\o/
         #spawns only once lol
         if not self.boss_spawned:
             self.boss_spawned = True
-            self.boss_group.add(self.e_boss, Boss_thrusters(self.boss_thrust_sprites))
+            self.boss_group.add(Boss_thrusters(self.boss_thrust_sprites), self.e_boss)
     
     def spawn_weapon_up(self):
         now = pg.time.get_ticks()
@@ -351,8 +375,13 @@ class Main():
         for bolt in self.bolt_group:
             if bolt.rect.top > self.scr_h:
                 bolt.kill()
-            #keep bullets moving
+            #keep bolts moving
             bolt.update()
+        
+        #movement (animation) of eyes of Ra
+        if self.boss_spawned and not self.boss_dead: 
+            for bolt in self.eyes_of_ra_group:
+                bolt.update()
         
         #movement and removing on enemies
         for enemy in self.enemy_group:
@@ -427,18 +456,21 @@ class Main():
         offset_y = 9.5
         if self.p1.alive:
             self.scr.blit(self.p1.draw_thrust, (self.p1.rect.center[0] + offset_x, self.p1.rect.center[1] + offset_y))
+
+        #draw enemies
+        if self.boss_spawned:
+            if len(self.boss_group) > 0:
+                self.boss_group.draw(self.scr)
+        self.enemy_group.draw(self.scr)
         
         #draw bullets and bolts
         self.bullet_group.draw(self.scr)
         self.bolt_group.draw(self.scr)
-
-        #draw enemies
-        self.enemy_group.draw(self.scr)
-        if self.boss_spawned:
-            if len(self.boss_group) > 0:
-                self.boss_group.draw(self.scr)
+        if self.boss_spawned and not self.boss_dead:
+            self.eyes_of_ra_group.draw(self.scr)
 
         #keeping scoretext updated inside loop 
+        self.p1_highscore_text = self.font_scores.render(f"Highscore: {self.p1_highscore}", True, (255, 255, 255))
         self.p1_score_text = self.font_scores.render(f"Score: {self.p1.score}", True, (255, 255, 255))
 
         #instructions text rendering
@@ -459,10 +491,12 @@ class Main():
             if self.inst_txt_idx >= 5:
                 #all texts have been displayed. Start spawning of enemies.
                 self.instructions = False
-                self.game_begin = True
+        self.game_begin = True
         
-        #draw other texts
-        self.scr.blit(self.p1_score_text, (20, 40))
+        #draw scores
+        self.scr.blit(self.p1_highscore_text, (20, 40))
+        self.scr.blit(self.p1_score_text, (20, 40 + self.p1_score_text.get_height()))
+        
         #if not self.p1.alive: #TODO:
             #self.scr.blit(self.txt_game_over_display, (self.scr_w // 2 -self.font.size(f'{self.txt_game_over}"")[0] // 2, self.scr_h // 2))
         #escape pod text
@@ -491,8 +525,8 @@ class Main():
             for _ in range(self.e_boss.hp):
                 #using same color as the ship
                 pg.draw.line(self.scr, (184, 31, 11), (self.scr_w // 2 - boss_hp_orig_length, boss_hp_y), 
-                (self.scr_w // 2 + boss_hp_length, boss_hp_y), width = 5)
-
+                (self.scr_w // 2 - boss_hp_orig_length + boss_hp_length, boss_hp_y), width = 5)
+        
         #draw explosions
         self.explosion_group.draw(self.scr)
 
@@ -561,8 +595,8 @@ class Player(pg.sprite.Sprite):
         self.move_right = False
         self.is_firing = False
         self.bullet_last = pg.time.get_ticks()
-        self.bullet_cooldown = 100
-        self.weapon_lvl = 0
+        self.attack_cooldown = 200
+        self.weapon_lvl = 4
         self.vel_x = 0
         self.score = 0
         self.lives = 3
@@ -618,7 +652,7 @@ class Player(pg.sprite.Sprite):
         offset_x = 0
         now = pg.time.get_ticks()
         
-        if now - self.bullet_last >= self.bullet_cooldown:
+        if now - self.bullet_last >= self.attack_cooldown:
             self.bullet_last = now
             Game.sound_bullet.play()
             Game.bullet_group.add(Bullet(Game.bullet_sprites, self.rect.x + 13, bullet_y))
@@ -640,7 +674,7 @@ class Bullet(pg.sprite.Sprite):
         self.index = 0
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
-        self.radius = self.rect.width * 0.6
+        self.radius = self.rect.width * 0.5
         self.bullet_speed = 5.3 #same as player ship speed
 
     def update(self):
@@ -660,7 +694,8 @@ class Bullet(pg.sprite.Sprite):
         #check for collisions: boss
         for enemy in Game.boss_group:
             if enemy.name == "Boss":
-                if Game.e_boss.in_position:
+                #make boss unable to take damage while moving to position
+                if Game.e_boss.in_position and not Game.e_boss.is_firing_2 and not Game.e_boss.pattern_3_moving_down:
                     if pg.sprite.collide_circle(self, enemy):
                         #collision
                         self.kill()
@@ -670,11 +705,16 @@ class Bullet(pg.sprite.Sprite):
                             Game.enemy_group.add(Game.escape_pod)
                             Game.boss_group.empty()
                             Game.boss_dead = True
-                            #TODO: skaalaa explosion tai tee niitä monta bossille
                             Game.sound_explosion.play()
                             Game.explosion_group.add(Explosion(Game.explosion_sprites, enemy.rect.center))
                             #add scores
                             Game.p1.score += enemy.points
+                            #check highscore
+                            Game.p1_highscore = Game.highscore()
+
+        #kill sprites that left the screen
+        if self.rect.y > Game.scr_h or self.rect.x > Game.scr_w or self.rect.x < 0:
+            self.kill()
         
         #animation
         fps = 6 #bigger number means it stays longer in one frame -> slower animation
@@ -696,7 +736,7 @@ class Bullet(pg.sprite.Sprite):
         self.rect.y -= self.bullet_speed
 
 class Bolt(pg.sprite.Sprite):
-    def __init__(self, images: list, coords, dx, dy): #TODO: laita kaikki x, y = coords mitä syötetään classeille.
+    def __init__(self, images: list, coords, dx = 0, dy = 0, speed = 0): 
         super().__init__()
         self.images = images
         self.image = self.images[0]
@@ -704,7 +744,7 @@ class Bolt(pg.sprite.Sprite):
         self.counter = 0
         self.rect = self.image.get_rect()
         self.rect.center = coords
-        self.speed = 5.3 #same as player ship speed
+        self.speed = speed
         self.dx = dx
         self.dy = dy
     
@@ -727,8 +767,12 @@ class Bolt(pg.sprite.Sprite):
         self.rect.x += self.speed * self.dx
         self.rect.y += self.speed * self.dy
 
+        #kill sprites that left the screen
+        if self.rect.y > Game.scr_h or self.rect.x > Game.scr_w or self.rect.x < 0:
+            self.kill()
+
         #animation
-        fps = 10 #bigger number means it stays longer in one frame -> slower animation
+        fps = 6 #bigger number means it stays longer in one frame -> slower animation
         self.counter += 1
 
         if self.counter >= fps and self.index < len(self.images) - 1:
@@ -745,35 +789,32 @@ class Bolt(pg.sprite.Sprite):
             self.image = self.images[self.index]
 
 class Boss_ray(pg.sprite.Sprite):
-    def __init__(self, images: list, x, y):
+    def __init__(self, images: list, coords):
         super().__init__()
-        self.image = images
+        self.images = images
+        self.image = images[0]
         self.rect = self.image.get_rect()
-        self.speed = 5.3 #same as player ship speed
-        self.rect.center = (x, y)
-        self.vel_x = 0
-        self.vel_y = 0
-    
+        self.rect.center = (coords[0], coords[1]+self.rect.height // 2)
+        self.hitbox = pg.Rect(self.rect.left + ((self.rect.width // 5) * 2), self.rect.top, self.rect.width - ((self.rect.width // 5) * 4), self.rect.height)
+        self.counter = 0
+        self.index = 0
+        
     def update(self):
         #check for collisions
         if Game.p1.alive:
-            if pg.sprite.collide_circle(self, Game.p1):
-                #collision
-                self.kill()
-                Game.p1.hp -= 1
-                if Game.p1.hp < 1:
-                    Game.explosion_group.add(Explosion(Game.explosion_sprites, Game.p1.rect.center))
-                    if Game.p1.lives > 0:
-                        Game.p1.lives -= 1
-                        Game.p1.hp = Game.p1.max_hp
-                    else:    
-                        Game.p1.alive = False
-                        Game.p1.kill() 
-
-        #TODO:siis täähän ei kai "kulje" mihinkään vaan ampuu paikallaan
-        
-        self.rect.x += self.vel_x
-        self.rect.y += self.vel_y
+            if self.index >=8: #ray is active
+                if self.hitbox.colliderect(Game.p1): #using colliderect [instead of sprite.collide_rect] since hitbox is not of sprite class
+                    #collision
+                    self.kill()
+                    Game.p1.hp -= 10
+                    if Game.p1.hp < 1:
+                        Game.explosion_group.add(Explosion(Game.explosion_sprites, Game.p1.rect.center))
+                        if Game.p1.lives > 0:
+                            Game.p1.lives -= 1
+                            Game.p1.hp = Game.p1.max_hp
+                        else:    
+                            Game.p1.alive = False
+                            Game.p1.kill() 
 
         #animation
         fps = 8 #bigger number means it stays longer in one frame -> slower animation
@@ -786,11 +827,9 @@ class Boss_ray(pg.sprite.Sprite):
             self.index += 1
             self.image = self.images[self.index]
         
-        #animation is complete, all images have been used -> restart animation
+        #animation is complete, all images have been used -> kill the sprite
         if self.counter >= fps and self.index >= len(self.images) - 1:
-            self.index = 0
-            self.counter = 0
-            self.image = self.images[self.index]
+            self.kill()
 
 class Explosion(pg.sprite.Sprite):
     def __init__(self, images: list, coords: tuple):
@@ -799,7 +838,7 @@ class Explosion(pg.sprite.Sprite):
         self.index = 0
         self.image = self.images[self.index]
         if Game.boss_spawned:
-            self.rect = self.image.get_rect(topleft=coords) #TODO: tää pitää fiksaa nyt toimii vain bossille lol
+            self.rect = self.image.get_rect(topleft=coords)
         else:
             self.rect = self.image.get_rect()
             self.rect.center = coords
@@ -832,8 +871,10 @@ class Weapon_up(pg.sprite.Sprite):
         self.image = self.images[self.index]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+        self.radius = self.rect.width * 0.2
         self.vel_x = 5
         self.vel_y = 3
+        self.speed = 10
         self.ani_last = pg.time.get_ticks()
         self.ani_cd = 400
 
@@ -846,9 +887,13 @@ class Weapon_up(pg.sprite.Sprite):
             #collision
             Game.sound_weapon_up.play()
             Game.p1.weapon_lvl += 1 #yay!
+            Game.p1.attack_cooldown -= 50
             self.kill()
-         
-        #animation
+
+        #kill if leaving the screen
+        if self.rect.top > Game.scr_h:
+            self.kill()
+
         #animation
         fps = 10 #bigger number means it stays longer in one frame -> slower animation
         self.counter += 1
@@ -866,41 +911,42 @@ class Weapon_up(pg.sprite.Sprite):
             self.counter = 0
             self.image = self.images[self.index]
 
-        self.rect.x += self.vel_x
-        self.rect.y += self.vel_y
+        #target player if player is close
+        if abs(self.rect.center[0] - Game.p1.rect.center[0]) <= self.rect.width * 3 and abs(self.rect.center[1] - Game.p1.rect.center[1]) <= self.rect.height * 3:
+            angle = math.atan2(Game.p1.rect.y - self.rect.y, Game.p1.rect.x - self.rect.x)
+            dx = math.cos(angle) 
+            dy = math.sin(angle) 
+            self.rect.x += dx * self.speed
+            self.rect.y += dy * self.speed
+
+        else:
+            #move normally
+            self.rect.x += self.vel_x
+            self.rect.y += self.vel_y
 
 class Fighter(pg.sprite.Sprite):
-    def __init__(self, image, image_left, image_right, x, y):
+    def __init__(self, images: list, x, y):
         super().__init__()
         self.name = "Fighter"
-        self.image = image
-        self.image_left = image_left
-        self.image_right = image_right
+        self.images = images
+        self.image = self.images[0]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
-        self.move_left = False
-        self.move_right = False
+        self.radius = self.rect.width * 0.3
         self.is_firing = False
         self.bolt_last = pg.time.get_ticks()
         self.attack_last = pg.time.get_ticks()
-        self.attack_cooldown = 1900
-        self.shots_cooldown = 200
+        self.attack_cooldown = 2200
+        self.shots_cooldown = 190
         self.shot_count = 0
         self.no_of_shots = 3
         self.vel_x = 0
-        self.vel_y = 2.5
+        self.vel_y = 3.5
         self.points = 180
         self.hp = 4
 
     def update(self):    
-        #animations
-        self.image = self.image
-        if self.vel_x > 0:
-            self.image = self.image_right
-        elif self.vel_x < 0:
-            self.image = self.image_left
-        
-        #move enemy
+         #move enemy
         self.rect.x += self.vel_x 
         self.rect.y += self.vel_y
         if self.rect.top >= 0:
@@ -913,12 +959,12 @@ class Fighter(pg.sprite.Sprite):
             now = pg.time.get_ticks()
             if now - self.bolt_last >= self.shots_cooldown and self.shot_count < self.no_of_shots:
                 self.bolt_last = now
-                Game.bolt_group.add(Bolt(Game.bolt_sprites, self.rect.center, dx, dy))
+                Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x, self.rect.center[1] + self.vel_y), dx, dy, 5.3))
                 self.shot_count +=1
             if now - self.attack_last >= self.attack_cooldown:
                 self.attack_last = now
                 self.shot_count = 0
-
+    
 class Droid(pg.sprite.Sprite):
     def __init__(self, images: list, spawn, x, y):
         super().__init__()
@@ -928,9 +974,8 @@ class Droid(pg.sprite.Sprite):
         self.image = self.images[self.index]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+        self.radius = self.rect.width * 0.3
         self.counter = 0
-        self.move_left = False
-        self.move_right = False
         self.is_firing = False
         self.bolt_last = pg.time.get_ticks()
         self.attack_cooldown = 800
@@ -976,7 +1021,7 @@ class Droid(pg.sprite.Sprite):
                 angle = math.atan2(Game.p1.rect.y - self.rect.y, Game.p1.rect.x - self.rect.x)
                 dx = math.cos(angle) 
                 dy = math.sin(angle) 
-                Game.bolt_group.add(Bolt(Game.bolt_sprites, self.rect.center, dx, dy))
+                Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x, self.rect.center[1] + self.vel_y), dx, dy, 5.3))
 
 class Worm(pg.sprite.Sprite):
     def __init__(self, images: list, x, y):
@@ -987,6 +1032,7 @@ class Worm(pg.sprite.Sprite):
         self.image = self.images[self.index]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+        self.radius = self.rect.width * 0.3
         self.move_left = False
         self.move_right = False
         
@@ -1009,7 +1055,7 @@ class Worm(pg.sprite.Sprite):
         self.attack_cooldown = 800
         
         self.points = 900
-        self.hp = 10
+        self.hp = 8
 
     def update(self):
         #animation
@@ -1061,7 +1107,7 @@ class Worm(pg.sprite.Sprite):
                     radians = math.radians(angle)
                     dir_x = math.cos(radians)
                     dir_y = math.sin(radians)
-                    Game.bolt_group.add(Bolt(Game.bolt_sprites, self.rect.center, dir_x, dir_y))
+                    Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x, self.rect.center[1] + self.vel_y), dir_x, dir_y, 5.3))
 
 class Boss(pg.sprite.Sprite):
     def __init__(self, img_ship: list, x, y):
@@ -1076,6 +1122,20 @@ class Boss(pg.sprite.Sprite):
         self.move_left = False
         self.move_right = False
         self.in_position = False
+    
+        #speed at start
+        self.vel_x = 0
+        self.vel_y = 1
+        self.points = 15000
+        self.max_hp = 600 # ship maximum health
+        self.hp = 600 # ship current health
+        self.stages = 5 
+        self.stage_last = 0
+        self.explosions_cooldown = 200
+
+        #hand out power ups
+        self.spawn_power_ups = True
+    
         #pattern 1 (bolts)
         self.is_firing_1 = False 
         self.pattern_1_atk_speed = 300
@@ -1084,48 +1144,52 @@ class Boss(pg.sprite.Sprite):
         self.pattern_1_last = pg.time.get_ticks()
         self.pattern_1_no_of_shots = 5
         self.pattern_1_shot_count = 1
-        #pattern 2 (bolts, droids)
+        
+        #pattern 2 (ray, droids)
         self.is_firing_2 = False
-        self.pattern_2_cooldown = 4000
-        self.pattern2_last = pg.time.get_ticks()
-        #pattern 3 (ray)
+        self.pattern_2_finished = False
+        self.pattern_2_pick_location_x = True
+        self.pattern_2_moving_up = True
+        self.pattern_2_cooldown = 7000
+        self.pattern_2_last = pg.time.get_ticks()
+        self.pattern_2_score = None
+
+        #pattern 3 (megaboemb)
         self.is_firing_3 = False
-        self.pattern_3_cooldown = 1000
-        self.pattern3_last = pg.time.get_ticks() 
-        #speed at start
-        self.vel_x = 3
-        self.vel_y = 1
-        self.points = 15000
-        self.max_hp = 450 # ship maximum health
-        self.hp = 450 # ship current health
-        self.stages = 5 
-        self.stage_last = 0
-        self.explosions_cooldown = 200
-    
+        self.pattern_3_cooldown = 50
+        self.pattern_3_last = pg.time.get_ticks() 
+        self.pattern_3_moving_up = True
+        self.pattern_3_moving_down = False
+        self.pattern_3_in_position = False
+
+        #random explosions
+        self.r_explosion_last = pg.time.get_ticks()
+        self.r_explosion_cooldown = 450
+
     def explosions(self):
         boss_x, boss_y = self.rect.center
         #left, right
-        explosion_coords_1 = [ (boss_x - 155, boss_y + 20), (boss_x - 125, boss_y + 60), 
+        self.explosion_coords_1 = [ (boss_x - 155, boss_y + 20), (boss_x - 125, boss_y + 60), 
         (boss_x + 83, boss_y + 20), (boss_x + 53, boss_y + 60) ]
         #mid
-        explosion_coords_2 = [ (boss_x - 51, boss_y + 2), (boss_x - 16, boss_y + 2),
+        self.explosion_coords_2 = [ (boss_x - 51, boss_y + 2), (boss_x - 16, boss_y + 2),
         (boss_x - 51, boss_y - 32), (boss_x - 51, boss_y - 67), (boss_x - 16, boss_y - 32), (boss_x - 16, boss_y - 67) ]
         #around
-        explosion_coords_3 = [ (boss_x - 34, boss_y + 110), (boss_x - 74, boss_y + 90), 
+        self.explosion_coords_3 = [ (boss_x - 34, boss_y + 110), (boss_x - 74, boss_y + 90), 
         (boss_x + 6, boss_y + 90), (boss_x - 155, boss_y - 80), (boss_x - 155, boss_y - 40), 
         (boss_x - 195, boss_y - 60), (boss_x + 83, boss_y - 80), (boss_x + 83, boss_y - 40), (boss_x + 123, boss_y - 60) ]
 
         if self.idx_ship == 1:
-            for coords in explosion_coords_1:
+            for coords in self.explosion_coords_1:
                 Game.explosion_group.add(Explosion(Game.explosion_sprites, coords))
         elif self.idx_ship == 2:
-            for coords in explosion_coords_2:
+            for coords in self.explosion_coords_2:
                 Game.explosion_group.add(Explosion(Game.explosion_sprites, coords))
         elif self.idx_ship == 3 or self.idx_ship == 4:
-            for coords in explosion_coords_3:
+            for coords in self.explosion_coords_3:
                 Game.explosion_group.add(Explosion(Game.explosion_sprites, coords))
             if self.idx_ship == 4:
-                for coords in explosion_coords_1:
+                for coords in self.explosion_coords_1:
                     Game.explosion_group.add(Explosion(Game.explosion_sprites, coords))
 
     @property
@@ -1133,6 +1197,10 @@ class Boss(pg.sprite.Sprite):
         return self.stages - (-(-self.hp // (self.max_hp // self.stages))) #might require wrapping all in min() if hp == 0
 
     def update(self):
+        #get p1 score and store it for later use
+        if self.pattern_2_score is None:
+            self.pattern_2_score = Game.p1.score
+       
         #update ship image
         self.idx_ship = self.idx_ship_get
 
@@ -1143,30 +1211,66 @@ class Boss(pg.sprite.Sprite):
         self.stage_last = self.idx_ship 
         self.image = self.img_ship[self.idx_ship]
 
-        #stop moving if nothing happens
-        self.vel_x = 0 #TODO: tarviiko?
+        print (f"{self.rect.center}, {self.pattern_3_in_position=}, {len(Game.eyes_of_ra_group)=}, {len(Game.enemy_group)}")
 
-        #start firing
+        #start patterns
+        if not self.in_position:
+            if self.rect.y < Game.scr_h // 5:
+                self.rect.y += self.vel_y
+
         if self.rect.y >= Game.scr_h // 5:
             self.in_position = True
+
         if self.in_position:
             if self.idx_ship == 0:
                 self.is_firing_1 = True
+                #stop moving
+                self.vel_y = 0
             elif self.idx_ship == 1:
                 self.is_firing_1 = False
                 self.is_firing_2 = True
             elif self.idx_ship == 2:
                 self.is_firing_2 = False
                 self.is_firing_3 = True
-            elif self.idx_ship >= 3:
-                pass #TODO: tuleeko tähän jotain.. vika stage ainaki vaa odottaa tuhoutumistaan ja voi vähän räjähdellä
+            if self.idx_ship >= 3:
+                self.is_firing_3 = False
+                Game.eyes_of_ra_group.empty()
+                now = pg.time.get_ticks()
+                if now - self.r_explosion_last > self.r_explosion_cooldown:
+                    self.r_explosion_last = now
+                    pick_list = r.choice([self.explosion_coords_1, self.explosion_coords_2, self.explosion_coords_3])
+                    coords = r.choice(pick_list)
+                    Game.explosion_group.add(Explosion(Game.explosion_sprites, coords))
+            if self.idx_ship == 4:
+                self.r_explosion_cooldown = 350  
         
-        #self.rect.x += self.vel_x
-        if self.rect.y < Game.scr_h // 5:
-            self.rect.y += self.vel_y
-        
+        #movement
+        self.rect.y += self.vel_y
+        self.rect.x += self.vel_x
+
         #attack
         if self.is_firing_1:
+            self.pattern_1()
+                    
+        if self.is_firing_2:
+            Game.spawn_e3()
+            self.pattern_2()
+            
+            #cooldown for ray-attack
+            now = pg.time.get_ticks()
+            if now - self.pattern_2_last >= self.pattern_2_cooldown:
+                self.pattern_2_last = now
+                self.pattern_2_finished = False
+            
+            #damage boss from droids
+            if Game.p1.score - self.pattern_2_score >= 225: #points from droids
+                self.pattern_2_score = Game.p1.score
+                self.hp -= 10
+            
+        if self.is_firing_3:
+            self.pattern_3()
+    
+    def pattern_1(self):
             now = pg.time.get_ticks()
             if now - self.pattern_1_atk_last >= self.pattern_1_atk_speed and self.pattern_1_shot_count < self.pattern_1_no_of_shots:
                 self.pattern_1_atk_last = now
@@ -1175,21 +1279,120 @@ class Boss(pg.sprite.Sprite):
                     radians = math.radians(angle)
                     dir_x = math.cos(radians)
                     dir_y = math.sin(radians)
-                    Game.bolt_group.add(Bolt(Game.bolt_sprites, self.rect.center, dir_x, dir_y))
+                    Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x, self.rect.center[1] + self.vel_y), dir_x, dir_y, 5.3))
                 self.pattern_1_shot_count +=1
             if now - self.pattern_1_last >= self.pattern_1_cooldown:
                 self.pattern_1_last = now
                 self.pattern_1_shot_count = 0
             else:
-                Game.spawn_weapon_up()
-                    
-        if self.is_firing_2:
-            Game.spawn_e3()
+                if self.spawn_power_ups:
+                    Game.spawn_weapon_up()
+                    self.spawn_power_ups = False
+    
+    def pattern_2(self):
+        if not self.pattern_2_finished:
+            
+            #moving up
+            if self.pattern_2_moving_up:
+                if self.rect.bottom > -1:
+                    self.vel_y = -5
+                else:
+                    self.vel_y = 0
+                    self.pattern_2_moving_up = False
+            
+            else: 
+                #pick a spot to descend from
+                if self.pattern_2_pick_location_x: 
+                    location_x = r.choice([10 + self.rect.width // 2, Game.scr_w // 2, Game.scr_w - 10 - self.rect.width // 2])
+                    location_y = -50
+                    self.rect.center = (location_x, location_y)
+                    self.pattern_2_pick_location_x = False
+            
+                #in position: fire the ray
+                self.vel_y = 0    
+                coords = (self.rect.center[0], self.rect.center[1] + 100)
+                Game.bolt_group.add(Boss_ray(Game.boss_ray_sprites, coords))
+
+                #time to cool down. stop the pattern
+                self.pattern_2_finished = True
+
+                ##init next time
+                self.pattern_2_pick_location_x = True
+                self.pattern_2_moving_up = True
+    
+    def pattern_3(self):
+        #moving up
+        if self.pattern_3_moving_up:
+            if self.rect.bottom > -1:
+                self.vel_y = -5
+            else:
+                self.vel_y = 0
+                self.pattern_3_moving_up = False
+                self.rect.center = (Game.scr_w // 2, self.rect.center[1])
+                self.pattern_3_moving_down = True
         
-        if self.is_firing_3:
-            pass #TODO: ray
+        #moving to position (center)
+        if self.pattern_3_moving_down:
+            if self.rect.y < Game.scr_h // 9:
+                self.vel_y = 5
+            else:
+                self.vel_y = 0
+                self.pattern_3_moving_down = False
 
+        if self.rect.y >= Game.scr_h // 9:
+            self.pattern_3_in_position = True
+        
+        #start the attack
+        if self.pattern_3_in_position:
+            
+            #draw the eyes
+            if len(Game.eyes_of_ra_group) <= 22: #the amount of bolts in the eyes
+                b_w = Game.bolt_sprites[0].get_width()
+                b_h = Game.bolt_sprites[0].get_height()
+                #top
+                for i in range(4):
+                    Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 - 300 - b_w * i, Game.scr_h // 5))) #left
+                    Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 + 300 - b_w * i, Game.scr_h // 5))) #right
+                for i in range(1,4):
+                    Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 - 300 + b_w * i, Game.scr_h // 5))) #left
+                    Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 + 300 + b_w * i, Game.scr_h // 5))) #right
+                #triangle
+                Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 - 300, Game.scr_h // 5 + b_h)) )#left
+                Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 + 300, Game.scr_h // 5 + b_h))) #right
+                for _ in range(2):
+                    Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 - 300 + b_w, Game.scr_h // 5 + b_h * 2))) #left
+                    Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 + 300 + b_w, Game.scr_h // 5 + b_h * 2))) #right
+                Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 - 300 - b_w, Game.scr_h // 5 + b_h * 2))) #left
+                Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 + 300 - b_w, Game.scr_h // 5 + b_h * 2))) #right
+                Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 - 300, Game.scr_h // 5 + b_h * 3))) #left
+                Game.eyes_of_ra_group.add(Bolt(Game.bolt_sprites, (Game.scr_w // 2 + 300, Game.scr_h // 5 + b_h * 3))) #right
 
+            #fire the eyes
+            self.pattern_3_shoot()
+    
+    def pattern_3_shoot(self):
+            b_w = Game.bolt_sprites[0].get_width()
+            b_h = Game.bolt_sprites[0].get_height()
+            
+            starting_points = [(Game.scr_w // 2 - 300, Game.scr_h // 5), (Game.scr_w // 2 - 300 - b_w, Game.scr_h // 5), (Game.scr_w // 2 - 300 - b_w * 2, Game.scr_h // 5), (Game.scr_w // 2 - 300 - b_w * 3, Game.scr_h // 5),
+            (Game.scr_w // 2 + 300, Game.scr_h // 5), (Game.scr_w // 2 + 300 - b_w, Game.scr_h // 5), (Game.scr_w // 2 + 300 - b_w * 2, Game.scr_h // 5), (Game.scr_w // 2 + 300 - b_w * 3, Game.scr_h // 5),
+            (Game.scr_w // 2 - 300 + b_w, Game.scr_h // 5), (Game.scr_w // 2 - 300 + b_w * 2, Game.scr_h // 5), (Game.scr_w // 2 - 300 + b_w * 3, Game.scr_h // 5), 
+            (Game.scr_w // 2 + 300 + b_w, Game.scr_h // 5), (Game.scr_w // 2 + 300 + b_w * 2, Game.scr_h // 5), (Game.scr_w // 2 + 300 + b_w * 3, Game.scr_h // 5),
+            (Game.scr_w // 2 - 300, Game.scr_h // 5 + b_h),  (Game.scr_w // 2 + 300, Game.scr_h // 5 + b_h),
+            (Game.scr_w // 2 - 300 + b_w, Game.scr_h // 5 + b_h * 2), (Game.scr_w // 2 + 300 + b_w, Game.scr_h // 5 + b_h * 2),
+            (Game.scr_w // 2 - 300 - b_w, Game.scr_h // 5 + b_h * 2), (Game.scr_w // 2 + 300 - b_w, Game.scr_h // 5 + b_h * 2),
+            (Game.scr_w // 2 - 300, Game.scr_h // 5 + b_h * 3), (Game.scr_w // 2 + 300, Game.scr_h // 5 + b_h * 3)]
+            coords = r.choice(starting_points)
+            target_x = r.randint(b_w, Game.scr_w - b_w)
+            target_y = Game.scr_h - b_h
+            angle = math.atan2(target_y - coords[1], target_x - coords[0])
+            dx = math.cos(angle) 
+            dy = math.sin(angle) 
+            now = pg.time.get_ticks()
+            if now - self.pattern_3_last >= self.pattern_3_cooldown:
+                self.pattern_3_last = now
+                Game.bolt_group.add(Bolt(Game.bolt_sprites, coords, dx, dy, 5.3))
+                
 class Boss_thrusters(pg.sprite.Sprite):
     def __init__(self, images: list):
         super().__init__()
@@ -1197,8 +1400,8 @@ class Boss_thrusters(pg.sprite.Sprite):
         self.images = images
         self.index = 0
         self.counter = 0
-        self.offset_x = -200
-        self.offset_y = -220
+        self.offset_x = -131
+        self.offset_y = -185
         self.image = self.images[self.index]
         self.rect = self.image.get_rect()
         self.rect.center = Game.e_boss.rect.center
@@ -1256,3 +1459,35 @@ if __name__ == "__main__":
     Game = Main()
     Game.menu()
     #Game.run()
+
+#CODEBANK
+if False:
+    class Game:
+        def __init__(self):
+            # set the desired window size
+            self.window_size = Vector2(512)
+            self.window = pygame.display.set_mode(self.window_size, pygame.DOUBLEBUF|pygame.HWSURFACE, 32)
+            pygame.display.set_caption('playground')
+            
+            self.screen_scale = 3
+            self.screen_size = Vector2(self.window_size/self.screen_scale)
+            
+            self.clock = pygame.time.Clock()
+            
+        ...
+            
+        def draw(self):
+            # fill the window with our background color to clear the screen
+            self.window.fill((60,50,60))
+
+            # create a new surface which is the size of the canvas we want
+            screen = pygame.Surface(self.screen_size, pygame.SRCALPHA)
+
+            # all drawing/blitting gets applied to the "screen" surface
+            
+            # resize the "screen" to the same size of the window
+            # and blit it to the window surface
+            self.window.blit(pygame.transform.scale(screen, self.window_size),Vector2())
+
+            # update the window surface
+            pygame.display.flip()
