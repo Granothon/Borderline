@@ -491,7 +491,7 @@ class Main():
             if self.inst_txt_idx >= 5:
                 #all texts have been displayed. Start spawning of enemies.
                 self.instructions = False
-        self.game_begin = True
+                self.game_begin = True
         
         #draw scores
         self.scr.blit(self.p1_highscore_text, (20, 40))
