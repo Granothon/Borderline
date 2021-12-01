@@ -539,10 +539,8 @@ class Main():
             boss_hp_y = 35 + self.hp_heart.get_height() // 2
             boss_hp_length = self.e_boss.image.get_size() [0] * 0.0010 * self.e_boss.hp
             boss_hp_orig_length = self.e_boss.image.get_size() [0] * 0.0010 * self.e_boss.max_hp
-            for _ in range(self.e_boss.hp):
-                #using same color as the ship
-                pg.draw.line(self.scr, self.boss_color, (self.scr_w // 2 - boss_hp_orig_length, boss_hp_y), 
-                (self.scr_w // 2 - boss_hp_orig_length + boss_hp_length, boss_hp_y), width = 5)
+            pg.draw.line(self.scr, self.boss_color, (self.scr_w // 2 - boss_hp_orig_length // 2, boss_hp_y), 
+                        (self.scr_w // 2 - boss_hp_orig_length // 2 + boss_hp_length, boss_hp_y), width = 5)
         
         #draw explosions
         self.explosion_group.draw(self.scr)
