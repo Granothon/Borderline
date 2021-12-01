@@ -6,6 +6,9 @@ import math
 
 class Main():
     def __init__(self):
+        self.reset()
+    
+    def reset(self):
         pg.init()
         #set screen size
         #game screen
@@ -125,6 +128,7 @@ class Main():
         self.boss_ship_sprites = []
         self.boss_ray_sprites = []
         self.boss_thrust_sprites = []
+        self.boss_color = (184, 31, 11)
         boss_size = 400
         ray_size = 262
         thrust_size = 262
@@ -200,6 +204,10 @@ class Main():
         self.txt_escape_pod = "I'll get you later!!"
         self.txt_escape_pod_display = self.font_scores.render(self.txt_escape_pod, True, (255, 255, 255))
         self.txt_escape_pod_length = self.font_scores.size(f'{self.txt_escape_pod}')[0] // 2
+        self.txt_game_over = "GAME OVER"
+        self.txt_game_over_2 = "R - Restart"
+        self.txt_game_over_display = self.font.render(self.txt_game_over, True, Color("white"))
+        self.txt_game_over_2_display = self.font.render(self.txt_game_over_2, True, Color("white"))
 
         #sounds
         self.sound_flight = pg.mixer.Sound('assets/sounds/flight.wav')
@@ -227,7 +235,7 @@ class Main():
             self.menu_animation.update()
         
         else:
-            return self.run()       
+            self.run()       
 
         pg.display.flip()
 
@@ -242,7 +250,7 @@ class Main():
                     exit()
                 elif event.key == pg.K_SPACE:
                     #skip the animation and start the game
-                    return self.run()
+                    self.run()
 
     #main loop
     def run(self):
@@ -335,6 +343,10 @@ class Main():
                 if event.key == pg.K_ESCAPE:
                     pg.quit()
                     exit()
+                if not Game.p1.alive:
+                    if event.key == pg.K_r:
+                        self.reset()
+                        self.run()
 
     def update(self):
         self.dt = self.clock.tick(self.fps) * 0.001
@@ -346,24 +358,24 @@ class Main():
 
         #spawning of enemies
         if self.game_begin:
-            #if self.p1.score <= self.e_spawn_points[0]:
-            #    self.spawn_e1()
-            #elif self.p1.score <= self.e_spawn_points[1]:
-            #    if not self.weapon_up_spawned:
-            #        self.weapon_up_spawned = True
-            #        self.spawn_weapon_up() #spawn power u
-            #    self.spawn_e2()
-            #if self.p1.score >= self.e_spawn_points[2] and self.p1.weapon_lvl == 0 and not self.weapon_up_spawned_2:
-            #        self.spawn_weapon_up() #second chance :D
-            #        self.weapon_up_spawned_2 = True
-            #elif self.p1.score <= self.e_spawn_points[2]:
-            #    self.spawn_e1()
-            #elif self.p1.score <= self.e_spawn_points[3]:
-            #    self.spawn_e2()
-            #elif self.p1.score <= self.e_spawn_points[4]:
-            #    self.spawn_e1()
-            #    self.spawn_e2()
-            #else:
+            if self.p1.score <= self.e_spawn_points[0]:
+                self.spawn_e1()
+            elif self.p1.score <= self.e_spawn_points[1]:
+                if not self.weapon_up_spawned:
+                    self.weapon_up_spawned = True
+                    self.spawn_weapon_up() #spawn power u
+                self.spawn_e2()
+            if self.p1.score >= self.e_spawn_points[2] and self.p1.weapon_lvl == 0 and not self.weapon_up_spawned_2:
+                    self.spawn_weapon_up() #second chance :D
+                    self.weapon_up_spawned_2 = True
+            elif self.p1.score <= self.e_spawn_points[2]:
+                self.spawn_e1()
+            elif self.p1.score <= self.e_spawn_points[3]:
+                self.spawn_e2()
+            elif self.p1.score <= self.e_spawn_points[4]:
+                self.spawn_e1()
+                self.spawn_e2()
+            else:
                 self.spawn_boss() #\o/
     
         #movement and removing of bullets
@@ -499,8 +511,11 @@ class Main():
         self.scr.blit(self.p1_highscore_text, (20, 40))
         self.scr.blit(self.p1_score_text, (20, 40 + self.p1_score_text.get_height()))
         
-        #if not self.p1.alive: #TODO:
-            #self.scr.blit(self.txt_game_over_display, (self.scr_w // 2 -self.font.size(f'{self.txt_game_over}"")[0] // 2, self.scr_h // 2))
+        #draw game over
+        if not self.p1.alive: 
+            self.scr.blit(self.txt_game_over_display, (self.scr_w // 2 -self.font.size(f'{self.txt_game_over}')[0] // 2, self.scr_h // 2))
+            self.scr.blit(self.txt_game_over_2_display, (self.scr_w // 2 -self.font.size(f'{self.txt_game_over_2}')[0] // 2, self.scr_h // 2 + self.font.size(f'{self.txt_game_over}')[1] * 2))
+
         #escape pod text
         if self.escape_pod is not None:
             self.scr.blit(self.txt_escape_pod_display, (self.escape_pod.rect.center[0] - self.txt_escape_pod_length, self.escape_pod.rect.center[1] - self.escape_pod.rect.height))
@@ -526,7 +541,7 @@ class Main():
             boss_hp_orig_length = self.e_boss.image.get_size() [0] * 0.0010 * self.e_boss.max_hp
             for _ in range(self.e_boss.hp):
                 #using same color as the ship
-                pg.draw.line(self.scr, (184, 31, 11), (self.scr_w // 2 - boss_hp_orig_length, boss_hp_y), 
+                pg.draw.line(self.scr, self.boss_color, (self.scr_w // 2 - boss_hp_orig_length, boss_hp_y), 
                 (self.scr_w // 2 - boss_hp_orig_length + boss_hp_length, boss_hp_y), width = 5)
         
         #draw explosions
@@ -1457,7 +1472,6 @@ class Escape_pod(pg.sprite.Sprite):
 if __name__ == "__main__":
     Game = Main()
     Game.menu()
-    #Game.run()
 
 #CODEBANK
 if False:
