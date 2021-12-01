@@ -4,6 +4,8 @@ from pygame import Color
 import random as r
 import math
 
+from pygame import surface
+
 class Main():
     def __init__(self):
         self.reset()
@@ -56,6 +58,9 @@ class Main():
         self.eyes_of_ra_group = pg.sprite.Group()
         self.explosion_group = pg.sprite.Group()
         self.power_up_group = pg.sprite.Group()
+
+        #particle group
+        self.particle_group = []
 
         #load player ship images
         p1_size = 58
@@ -483,6 +488,18 @@ class Main():
         if self.boss_spawned and not self.boss_dead:
             self.eyes_of_ra_group.draw(self.scr)
 
+        #draw particles
+        particle_died = False
+        for particle in self.particle_group:
+            color = r.choice(["#a9420f", "#f0d5bc", "#6d412e", "#dfae7f", "#e87e0d", "#fbcf85", "#293d43", "#f9b631", "#7c9ca5", "#a6693d", "#d9894d", "#3c5964"])
+            pg.draw.circle(self.scr, Color(color), (particle.x, particle.y), particle.radius)
+            particle.update()
+            if particle.time <= 0:
+                particle_died = True
+            
+        if particle_died:
+            self.particle_group = [particle for particle in self.particle_group if particle.time > 0]
+        
         #keeping scoretext updated inside loop 
         self.p1_highscore_text = self.font_scores.render(f"Highscore: {self.p1_highscore}", True, (255, 255, 255))
         self.p1_score_text = self.font_scores.render(f"Score: {self.p1.score}", True, (255, 255, 255))
@@ -505,16 +522,11 @@ class Main():
             if self.inst_txt_idx >= 5:
                 #all texts have been displayed. Start spawning of enemies.
                 self.instructions = False
-                self.game_begin = True
+        self.game_begin = True
         
         #draw scores
         self.scr.blit(self.p1_highscore_text, (20, 40))
         self.scr.blit(self.p1_score_text, (20, 40 + self.p1_score_text.get_height()))
-        
-        #draw game over
-        if not self.p1.alive: 
-            self.scr.blit(self.txt_game_over_display, (self.scr_w // 2 -self.font.size(f'{self.txt_game_over}')[0] // 2, self.scr_h // 2))
-            self.scr.blit(self.txt_game_over_2_display, (self.scr_w // 2 -self.font.size(f'{self.txt_game_over_2}')[0] // 2, self.scr_h // 2 + self.font.size(f'{self.txt_game_over}')[1] * 2))
 
         #escape pod text
         if self.escape_pod is not None:
@@ -550,6 +562,15 @@ class Main():
 
         #draw fps 
         self.scr.blit(self.update_fps(), (self.scr_w - 125,self.scr_h - 100))
+
+        #draw game over
+        if not self.p1.alive: 
+            self.scr.blit(self.txt_game_over_display, (self.scr_w // 2 -self.font.size(f'{self.txt_game_over}')[0] // 2, self.scr_h // 2))
+            self.scr.blit(self.txt_game_over_2_display, (self.scr_w // 2 -self.font.size(f'{self.txt_game_over_2}')[0] // 2, self.scr_h // 2 + self.font.size(f'{self.txt_game_over}')[1] * 2))
+        
+        #draw game clear TODO:
+        #if self.p1.alive and self.boss_dead and len(self.boss_group) == 0:
+
 
         pg.display.flip()
 
@@ -690,7 +711,7 @@ class Bullet(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
         self.radius = self.rect.width * 0.5
-        self.bullet_speed = 5.3 #same as player ship speed
+        self.speed = 5.3 
 
     def update(self):
         #check for collisions: normal enemies
@@ -699,33 +720,39 @@ class Bullet(pg.sprite.Sprite):
                 if pg.sprite.collide_circle(self, enemy):
                     #collision
                     self.kill()
+                    Game.particle_group.append(Particle(self.rect.center[0], self.rect.center[1] + self.speed))
+
                     enemy.hp -= 1
                     if enemy.hp < 1:
                         enemy.kill()
-                        Game.explosion_group.add(Explosion(Game.explosion_sprites, enemy.rect.center))
+                        Game.explosion_group.add(Explosion(Game.explosion_sprites, (enemy.rect.center[0] + enemy.vel_x, enemy.rect.center[1] + enemy.vel_y)))
                         #add scores
                         Game.p1.score += enemy.points
 
         #check for collisions: boss
-        for enemy in Game.boss_group:
-            if enemy.name == "Boss":
-                #make boss unable to take damage while moving to position
-                if Game.e_boss.in_position and not Game.e_boss.is_firing_2 and not Game.e_boss.pattern_3_moving_down:
-                    if pg.sprite.collide_circle(self, enemy):
-                        #collision
-                        self.kill()
-                        enemy.hp -= 1
-                        if enemy.hp < 1:
-                            Game.escape_pod = Escape_pod(Game.boss_escape_pod_img, enemy.rect.center)
-                            Game.enemy_group.add(Game.escape_pod)
-                            Game.boss_group.empty()
-                            Game.boss_dead = True
-                            Game.sound_explosion.play()
-                            Game.explosion_group.add(Explosion(Game.explosion_sprites, enemy.rect.center))
-                            #add scores
-                            Game.p1.score += enemy.points
-                            #check highscore
-                            Game.p1_highscore = Game.highscore()
+        if Game.boss_spawned and not Game.boss_dead:
+            for enemy in Game.boss_group:
+                if enemy.name == "Boss":
+                    #make boss unable to take damage while moving to position
+                    if Game.e_boss.in_position and not Game.e_boss.is_firing_2 and not Game.e_boss.pattern_3_moving_down:
+                        if pg.sprite.collide_circle(self, enemy):
+
+                            #collision
+                            self.kill()
+                            Game.particle_group.append(Particle(self.rect.center[0], self.rect.center[1] + self.speed))
+
+                            enemy.hp -= 1
+                            if enemy.hp < 1:
+                                Game.escape_pod = Escape_pod(Game.boss_escape_pod_img, enemy.rect.center)
+                                Game.enemy_group.add(Game.escape_pod)
+                                Game.boss_group.empty()
+                                Game.boss_dead = True
+                                Game.sound_explosion.play()
+                                Game.explosion_group.add(Explosion(Game.explosion_sprites, enemy.rect.center))
+                                #add scores
+                                Game.p1.score += enemy.points
+                                #check highscore
+                                Game.p1_highscore = Game.highscore()
 
         #kill sprites that left the screen
         if self.rect.y > Game.scr_h or self.rect.x > Game.scr_w or self.rect.x < 0:
@@ -748,7 +775,23 @@ class Bullet(pg.sprite.Sprite):
             self.counter = 0
             self.image = self.images[self.index]
 
-        self.rect.y -= self.bullet_speed
+        #move bullets
+        self.rect.y -= self.speed
+
+class Particle():
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.vel_x = r.randint(0, 20) / 10 - 1
+        self.vel_y = 2
+        self.time = r.randint(10, 40)
+        self.radius = 5
+
+    def update(self):
+        self.x += self.vel_x
+        self.y += self.vel_y
+        self.time -= 1
+        self.radius -= 0.1
 
 class Bolt(pg.sprite.Sprite):
     def __init__(self, images: list, coords, dx = 0, dy = 0, speed = 0): 
@@ -771,7 +814,7 @@ class Bolt(pg.sprite.Sprite):
                 self.kill()
                 Game.p1.hp -= 1
                 if Game.p1.hp < 1:
-                    Game.explosion_group.add(Explosion(Game.explosion_sprites, Game.p1.rect.center))
+                    Game.explosion_group.add(Explosion(Game.explosion_sprites, (Game.p1.rect.center[0] + Game.p1.vel_x, Game.p1.rect.center[1] + Game.p1.vel_y)))
                     if Game.p1.lives > 0:
                         Game.p1.lives -= 1
                         Game.p1.hp = Game.p1.max_hp
@@ -823,7 +866,7 @@ class Boss_ray(pg.sprite.Sprite):
                     self.kill()
                     Game.p1.hp -= 10
                     if Game.p1.hp < 1:
-                        Game.explosion_group.add(Explosion(Game.explosion_sprites, Game.p1.rect.center))
+                        Game.explosion_group.add(Explosion(Game.explosion_sprites, (Game.p1.rect.center[0] + Game.p1.vel_x, Game.p1.rect.center[1] + Game.p1.vel_y)))
                         if Game.p1.lives > 0:
                             Game.p1.lives -= 1
                             Game.p1.hp = Game.p1.max_hp
@@ -1465,7 +1508,7 @@ class Escape_pod(pg.sprite.Sprite):
             self.rect.y += self.vel_y
             if not self.sound_played:
                 Game.sound_escape_pod.play()
-                self.sound_played = True
+                self.sound_played = True       
 
 if __name__ == "__main__":
     Game = Main()
