@@ -492,7 +492,7 @@ class Main():
         particle_died = False
         for particle in self.particle_group:
             color = r.choice(["#a9420f", "#f0d5bc", "#6d412e", "#dfae7f", "#e87e0d", "#fbcf85", "#293d43", "#f9b631", "#7c9ca5", "#a6693d", "#d9894d", "#3c5964"])
-            pg.draw.circle(self.scr, Color(color), (particle.x, particle.y), particle.radius)
+            pg.draw.circle(self.scr, Color(color), (particle.x, particle.y), particle.time)
             particle.update()
             if particle.time <= 0:
                 particle_died = True
@@ -784,14 +784,12 @@ class Particle():
         self.y = y
         self.vel_x = r.randint(0, 20) / 10 - 1
         self.vel_y = 2
-        self.time = r.randint(10, 40)
-        self.radius = 5
+        self.time = r.randint(3, 6) #also acts as radius
 
     def update(self):
         self.x += self.vel_x
         self.y += self.vel_y
-        self.time -= 1
-        self.radius -= 0.1
+        self.time -= 0.1
 
 class Bolt(pg.sprite.Sprite):
     def __init__(self, images: list, coords, dx = 0, dy = 0, speed = 0): 
