@@ -48,6 +48,9 @@ class Main():
         self.bg_middle_i = 0
         self.bg_front_i = 0
 
+        #set game state
+        self.game_end = False
+
         #sprite groups
         self.menu_group = pg.sprite.Group()
         self.p1_group = pg.sprite.Group()
@@ -456,7 +459,7 @@ class Main():
         #the screen size has to divide evenly with speed 
         #width / length: 864, 1080
         
-        self.bg_i += 0  #at the moment looks best when real background is not scrolling
+        self.bg_i += 0  #at the moment it looks best when the real background is not scrolling
         if not self.boss_spawned:
             self.bg_back_i += 0.5 
             self.bg_middle_i += 1
@@ -496,7 +499,7 @@ class Main():
             particle.update()
             if particle.time <= 0:
                 particle_died = True
-            
+
         if particle_died:
             self.particle_group = [particle for particle in self.particle_group if particle.time > 0]
         
@@ -522,7 +525,7 @@ class Main():
             if self.inst_txt_idx >= 5:
                 #all texts have been displayed. Start spawning of enemies.
                 self.instructions = False
-        self.game_begin = True
+        self.game_begin = True #TODO: is this here? or animations..?
         
         #draw scores
         self.scr.blit(self.p1_highscore_text, (20, 40))
@@ -569,8 +572,12 @@ class Main():
             self.scr.blit(self.txt_game_over_2_display, (self.scr_w // 2 -self.font.size(f'{self.txt_game_over_2}')[0] // 2, self.scr_h // 2 + self.font.size(f'{self.txt_game_over}')[1] * 2))
         
         #draw game clear TODO:
-        #if self.p1.alive and self.boss_dead and len(self.boss_group) == 0:
-
+        if self.p1.alive and self.boss_dead and len(self.boss_group) == 0:
+            self.game_end = True
+            self.p1.vel_x = 0
+            self.p1.vel_y = 5.3
+            if self.p1.bottom < 0:
+                self.kill
 
         pg.display.flip()
 
@@ -634,6 +641,7 @@ class Player(pg.sprite.Sprite):
         self.attack_cooldown = 200
         self.weapon_lvl = 0
         self.vel_x = 0
+        self.vel_y = 0
         self.score = 0
         self.lives = 3
         self.max_hp = 4
@@ -641,8 +649,11 @@ class Player(pg.sprite.Sprite):
     
     def update(self):
         
-        #draw thrust: slow
-        self.draw_thrust = self.thrust
+        #draw thruster
+        if self.vel_y == 0:
+            self.draw_thrust = self.thrust
+        elif self.vel_y < 0:
+            self.draw_thrust = self.thrust2
 
         #stop player from moving
         self.vel_x = 0 
@@ -655,7 +666,7 @@ class Player(pg.sprite.Sprite):
         keystate = pg.key.get_pressed()
         
         #make the player unable to leave the screen while moving
-        if self.alive:
+        if self.alive and not Game.game_end:
             if keystate[pg.K_LEFT]:
                 self.move_left = True
                 if self.rect.left - self.vel_x >= 0:
@@ -665,7 +676,6 @@ class Player(pg.sprite.Sprite):
                 if self.rect.right + self.vel_x <= Game.scr_w:
                     self.vel_x = 5.3
             if keystate[pg.K_UP]:
-                self.draw_thrust = self.thrust2
                 if self.rect.top + self.vel_y >= 0:
                     self.vel_y = -4.3
             if keystate[pg.K_DOWN]:
