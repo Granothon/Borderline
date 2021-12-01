@@ -80,7 +80,7 @@ class Main():
         self.menu_animation = Ship_animation_menu(self.p1_image_menu, -100, (self.scr_w // 2) - 200)
         self.menu_group.add(self.menu_animation)
         #instructions page
-        self.instructions = False
+        self.instructions = True
         self.game_begin = False #this will wait for instructions to be passed first
         self.instructions_start_cd = 1600
         self.inst_txt_idx = 0
@@ -596,7 +596,7 @@ class Player(pg.sprite.Sprite):
         self.is_firing = False
         self.bullet_last = pg.time.get_ticks()
         self.attack_cooldown = 200
-        self.weapon_lvl = 4
+        self.weapon_lvl = 0
         self.vel_x = 0
         self.score = 0
         self.lives = 3
