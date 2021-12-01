@@ -130,6 +130,8 @@ class Main():
         thrust_size = 262
         self.boss_escape_pod_img = pg.image.load(f'assets/enemy_ships/boss/ship/escape_pod.png').convert_alpha()
         self.boss_escape_pod_img = pg.transform.scale(self.boss_escape_pod_img, (boss_size // 10, (boss_size // 10) * 2))
+        self.boss_pattern_2_damaged_img = pg.image.load(f'assets/enemy_ships/boss/ship/2_damaged.png').convert_alpha()
+        self.boss_pattern_2_damaged_img = pg.transform.scale(self.boss_pattern_2_damaged_img, (boss_size, boss_size))
         for i in range(1,6):
             image = pg.image.load(f'assets/enemy_ships/boss/ship/{i}.png').convert_alpha()
             image = pg.transform.scale(image, (boss_size, boss_size))
@@ -344,24 +346,24 @@ class Main():
 
         #spawning of enemies
         if self.game_begin:
-            if self.p1.score <= self.e_spawn_points[0]:
-                self.spawn_e1()
-            elif self.p1.score <= self.e_spawn_points[1]:
-                if not self.weapon_up_spawned:
-                    self.weapon_up_spawned = True
-                    self.spawn_weapon_up() #spawn power u
-                self.spawn_e2()
-            if self.p1.score >= self.e_spawn_points[2] and self.p1.weapon_lvl == 0 and not self.weapon_up_spawned_2:
-                    self.spawn_weapon_up() #second chance :D
-                    self.weapon_up_spawned_2 = True
-            elif self.p1.score <= self.e_spawn_points[2]:
-                self.spawn_e1()
-            elif self.p1.score <= self.e_spawn_points[3]:
-                self.spawn_e2()
-            elif self.p1.score <= self.e_spawn_points[4]:
-                self.spawn_e1()
-                self.spawn_e2()
-            else:
+            #if self.p1.score <= self.e_spawn_points[0]:
+            #    self.spawn_e1()
+            #elif self.p1.score <= self.e_spawn_points[1]:
+            #    if not self.weapon_up_spawned:
+            #        self.weapon_up_spawned = True
+            #        self.spawn_weapon_up() #spawn power u
+            #    self.spawn_e2()
+            #if self.p1.score >= self.e_spawn_points[2] and self.p1.weapon_lvl == 0 and not self.weapon_up_spawned_2:
+            #        self.spawn_weapon_up() #second chance :D
+            #        self.weapon_up_spawned_2 = True
+            #elif self.p1.score <= self.e_spawn_points[2]:
+            #    self.spawn_e1()
+            #elif self.p1.score <= self.e_spawn_points[3]:
+            #    self.spawn_e2()
+            #elif self.p1.score <= self.e_spawn_points[4]:
+            #    self.spawn_e1()
+            #    self.spawn_e2()
+            #else:
                 self.spawn_boss() #\o/
     
         #movement and removing of bullets
@@ -596,7 +598,7 @@ class Player(pg.sprite.Sprite):
         self.is_firing = False
         self.bullet_last = pg.time.get_ticks()
         self.attack_cooldown = 200
-        self.weapon_lvl = 0
+        self.weapon_lvl = 4
         self.vel_x = 0
         self.score = 0
         self.lives = 3
@@ -1119,8 +1121,6 @@ class Boss(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
         self.radius = self.rect.width * 0.4
-        self.move_left = False
-        self.move_right = False
         self.in_position = False
     
         #speed at start
@@ -1130,28 +1130,28 @@ class Boss(pg.sprite.Sprite):
         self.max_hp = 600 # ship maximum health
         self.hp = 600 # ship current health
         self.stages = 5 
-        self.stage_last = 0
         self.explosions_cooldown = 200
+        self.stage_last = 0
 
         #hand out power ups
         self.spawn_power_ups = True
     
         #pattern 1 (bolts)
         self.is_firing_1 = False 
-        self.pattern_1_atk_speed = 300
         self.pattern_1_cooldown = 5000
         self.pattern_1_atk_last = pg.time.get_ticks()
         self.pattern_1_last = pg.time.get_ticks()
+        self.pattern_1_atk_speed = 300
         self.pattern_1_no_of_shots = 5
         self.pattern_1_shot_count = 1
         
         #pattern 2 (ray, droids)
         self.is_firing_2 = False
+        self.pattern_2_cooldown = 7000
+        self.pattern_2_last = pg.time.get_ticks()
         self.pattern_2_finished = False
         self.pattern_2_pick_location_x = True
         self.pattern_2_moving_up = True
-        self.pattern_2_cooldown = 7000
-        self.pattern_2_last = pg.time.get_ticks()
         self.pattern_2_score = None
 
         #pattern 3 (megaboemb)
@@ -1163,8 +1163,8 @@ class Boss(pg.sprite.Sprite):
         self.pattern_3_in_position = False
 
         #random explosions
-        self.r_explosion_last = pg.time.get_ticks()
         self.r_explosion_cooldown = 450
+        self.r_explosion_last = pg.time.get_ticks()
 
     def explosions(self):
         boss_x, boss_y = self.rect.center
@@ -1211,8 +1211,6 @@ class Boss(pg.sprite.Sprite):
         self.stage_last = self.idx_ship 
         self.image = self.img_ship[self.idx_ship]
 
-        print (f"{self.rect.center}, {self.pattern_3_in_position=}, {len(Game.eyes_of_ra_group)=}, {len(Game.enemy_group)}")
-
         #start patterns
         if not self.in_position:
             if self.rect.y < Game.scr_h // 5:
@@ -1255,7 +1253,7 @@ class Boss(pg.sprite.Sprite):
         if self.is_firing_2:
             Game.spawn_e3()
             self.pattern_2()
-            
+
             #cooldown for ray-attack
             now = pg.time.get_ticks()
             if now - self.pattern_2_last >= self.pattern_2_cooldown:
@@ -1266,6 +1264,7 @@ class Boss(pg.sprite.Sprite):
             if Game.p1.score - self.pattern_2_score >= 225: #points from droids
                 self.pattern_2_score = Game.p1.score
                 self.hp -= 10
+                self.image = Game.boss_pattern_2_damaged_img
             
         if self.is_firing_3:
             self.pattern_3()
@@ -1316,7 +1315,7 @@ class Boss(pg.sprite.Sprite):
                 #time to cool down. stop the pattern
                 self.pattern_2_finished = True
 
-                ##init next time
+                #init next time
                 self.pattern_2_pick_location_x = True
                 self.pattern_2_moving_up = True
     
