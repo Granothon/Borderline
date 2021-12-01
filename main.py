@@ -611,7 +611,7 @@ class Player(pg.sprite.Sprite):
         self.is_firing = False
         self.bullet_last = pg.time.get_ticks()
         self.attack_cooldown = 200
-        self.weapon_lvl = 4
+        self.weapon_lvl = 0
         self.vel_x = 0
         self.score = 0
         self.lives = 3
