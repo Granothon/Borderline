@@ -255,9 +255,11 @@ class Main():
         self.sound_bullet = pg.mixer.Sound('assets/sounds/bullet.wav')
         self.sound_bullet.set_volume(0.5)
         self.sound_bolt_collide = pg.mixer.Sound('assets/sounds/bolt_collide.wav')
+        self.sound_bolt_collide.set_volume(0.5)
         self.sound_weapon_up = pg.mixer.Sound('assets/sounds/weapon_up.wav')
         self.sound_explosion = pg.mixer.Sound('assets/sounds/explosion.wav')
         self.sound_boss_ray = pg.mixer.Sound('assets/sounds/boss_ray.wav')
+        self.sound_boss_ray.set_volume(0.5)
         self.sound_escape_pod = pg.mixer.Sound('assets/sounds/escape_pod.wav')
         self.sound_victory = pg.mixer.Sound('assets/sounds/victory.wav')
         self.sound_victory_played = False
@@ -764,7 +766,7 @@ class Player(pg.sprite.Sprite):
         self.vel_y = 0
 
         #stats
-        self.score = 900
+        self.score = 0
         self.lives = 3
         self.max_hp = 4
         self.hp = 4
@@ -1324,7 +1326,7 @@ class Worm(pg.sprite.Sprite):
         self.images = images
         self.index = 0
         self.image = self.images[self.index]
-        self.fps = 16 # animation will change frame 5 times per second
+        self.fps = 11 # animation will change frame 11 times per second
         self.frame_duration = 1 / self.fps #seconds spent in 1 frame
         self.counter = 0
 
