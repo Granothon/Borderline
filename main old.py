@@ -29,8 +29,8 @@ class Main():
 
         #set fps
         self.clock = pg.time.Clock()
-        self.time = time()
-        self.fps = 0
+        self.last_time = time()
+        self.fps = 60
         
         #set background
         self.bg = pg.image.load('assets/background/stage-back.png').convert()
@@ -65,7 +65,6 @@ class Main():
 
         #particle groups
         self.particle_bullet_group = []
-        self.particle_power_up_group = []
 
         #load player ship images
         p1_size = 58
@@ -205,11 +204,6 @@ class Main():
             image = (pg.image.load(f'assets/power_up/{i}.png')).convert_alpha()
             image = pg.transform.scale(image, (weapon_up_size, weapon_up_size))
             self.weapon_up_sprites.append(image)
-        
-        #glow to weapon_up
-        self.weapon_up_glow_radius = 35
-        self.weapon_up_glow_radius_orig = 35
-        self.weapon_up_glow_radius_growing = False
 
         #set required score for different enemy spawnings
         self.e_spawn_points = [1000, 2500, 3500, 7000, 14000]
@@ -254,7 +248,6 @@ class Main():
         self.sound_flight = pg.mixer.Sound('assets/sounds/flight.wav')
         self.sound_bullet = pg.mixer.Sound('assets/sounds/bullet.wav')
         self.sound_bullet.set_volume(0.5)
-        self.sound_bolt_collide = pg.mixer.Sound('assets/sounds/bolt_collide.wav')
         self.sound_weapon_up = pg.mixer.Sound('assets/sounds/weapon_up.wav')
         self.sound_explosion = pg.mixer.Sound('assets/sounds/explosion.wav')
         self.sound_escape_pod = pg.mixer.Sound('assets/sounds/escape_pod.wav')
@@ -268,9 +261,7 @@ class Main():
             self.menu_update()
         
     def menu_update(self):
-        last_time = self.time
-        self.time = time()
-        self.dt = self.time - last_time
+        self.dt = self.clock.tick(self.fps) 
         self.scr.fill((0,0,0))
         self.scr.blit(self.bg, (0, 0))
         if len(self.menu_group) != 0:
@@ -397,9 +388,7 @@ class Main():
                         self.run()
 
     def update(self):
-        last_time = self.time
-        self.time = time()
-        self.dt = self.time - last_time
+        self.dt = self.clock.tick(self.fps) 
         
         #setting delay for instruction text
         if not self.instructions and not self.game_begin:
@@ -474,6 +463,7 @@ class Main():
             powerup.update()
     
     def circle_surf(self, color, radius):
+        print (radius)
         surf = pg.Surface((radius * 2, radius * 2 ), pg.SRCALPHA) #make it transparent
         #make a glow circle
         pg.draw.circle(surf, color, (radius, radius), radius)
@@ -511,9 +501,9 @@ class Main():
         
         self.bg_i += 0  #at the moment it looks best when the real background is not scrolling
         if not self.boss_spawned:
-            self.bg_back_i += 30 * self.dt
-            self.bg_middle_i += 60 * self.dt
-            self.bg_front_i += 150 * self.dt
+            self.bg_back_i += 0.5 * self.dt
+            self.bg_middle_i += 1 * self.dt
+            self.bg_front_i += 2.5 * self.dt
 
         #draw player
         self.p1_group.draw(self.scr)
@@ -537,20 +527,6 @@ class Main():
             particle.update()
             if particle.time <= 0:
                 self.particle_bullet_group.remove(particle)
-        
-        for particle in self.particle_power_up_group[:]:
-            color = r.choice(["#476930", "#86B049", "#C8B88A", "#F1DDDF"])
-            pg.draw.circle(self.scr, Color(color), (particle.x, particle.y), particle.time)
-            particle.update()
-
-            #add glow to particles
-            radius = particle.time * 0.8
-            color = Color("green")
-            self.scr.blit(self.circle_surf(color, radius), (particle.x - radius, particle.y - radius), special_flags=BLEND_RGB_ADD) 
-
-            if particle.time <= 0:
-                self.particle_power_up_group.remove(particle)
-            
         
         #keeping scoretext updated inside loop 
         self.p1_highscore_text = self.font_scores.render(f"Highscore: {self.p1_highscore}", True, (255, 255, 255))
@@ -610,6 +586,12 @@ class Main():
         #draw explosions
         self.explosion_group.draw(self.scr)
        
+        #add glow to powerups
+        for powerup in self.power_up_group:
+            radius = powerup.rect.width * 0.6
+            color = (0, 120, 0)
+            self.scr.blit(self.circle_surf(color, radius), (powerup.rect.center[0] - radius, powerup.rect.center[1] - radius), special_flags=BLEND_RGB_ADD) 
+        
         #draw powerups
         self.power_up_group.draw(self.scr)
  
@@ -690,43 +672,36 @@ class Ship_animation_menu(pg.sprite.Sprite):
     def __init__(self, image, x, y):
         super().__init__()
         self.name = "Start animation"
-
-        #animation
         self.image = image
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.vel_x = 17
+        self.vel_y = 0
         self.turned_1 = False
         self.turned_2 = False
         self.play_1 = True
 
-        #position
-        self.rect = self.image.get_rect()
-        self.pos = [x, y]
-        self.rect.center = self.pos
-
-        #movement
-        self.vel_x = 900
-        self.vel_y = 0
-
     def update(self):
         #move ship
-        self.pos[0] += self.vel_x * Game.dt 
-        self.pos[1] += self.vel_y * Game.dt
-        self.rect.center = self.pos
+        self.rect.x += self.vel_x * Game.dt
+        self.rect.y += self.vel_y * Game.dt
 
         #sound
         if self.play_1:
             Game.sound_flight.play()
             self.play_1 = False
         
+        print (self.rect.center)
         #destroy sprite when leaving screens
         if self.rect.x > 1080 and not self.turned_1:
             Game.sound_flight.play()
-            self.pos[1] += 300
+            self.rect.y += 300
             self.vel_x = -self.vel_x
             self.image = pg.transform.rotate(self.image, 180)
             self.turned_1 = True
         if self.rect.x < -350 and self.turned_1:
             Game.sound_flight.play()
-            self.pos[1] += 300
+            self.rect.y += 300
             self.vel_x = -self.vel_x
             self.image = pg.transform.rotate(self.image, 180)
             self.turned_2 = True
@@ -738,31 +713,18 @@ class Player(pg.sprite.Sprite):
         super().__init__()
         self.name = "Player"
         self.alive = True
-
-        #animation
         self.images = images
         self.index = 0
         self.image = self.images[self.index]
-
-        #position
         self.rect = self.image.get_rect()
-        self.pos = [coords[0], coords[1]]
-        self.rect.center = self.pos
-
-        #hitbox
+        self.rect.center = coords
         self.radius = self.rect.width * 0.3
-
-        #attack
         self.is_firing = False
         self.bullet_last = pg.time.get_ticks()
         self.attack_cooldown = 200
         self.weapon_lvl = 0
-
-        #movement
         self.vel_x = 0
         self.vel_y = 0
-
-        #stats
         self.score = 900
         self.lives = 3
         self.max_hp = 4
@@ -780,17 +742,17 @@ class Player(pg.sprite.Sprite):
         #make the player unable to leave the screen while moving
         if self.alive and not Game.game_end:
             if keystate[pg.K_LEFT]:
-                if self.rect.left - self.vel_x * Game.dt >= 0:
-                    self.vel_x = -318
+                if self.rect.left - self.vel_x >= 0:
+                    self.vel_x = -5.3
             if keystate[pg.K_RIGHT]:
-                if self.rect.right + self.vel_x * Game.dt <= Game.scr_w:
-                    self.vel_x = 318
+                if self.rect.right + self.vel_x <= Game.scr_w:
+                    self.vel_x = 5.3
             if keystate[pg.K_UP]:
-                if self.rect.top + self.vel_y * Game.dt >= 0:
-                    self.vel_y = -318
+                if self.rect.top + self.vel_y >= 0:
+                    self.vel_y = -4.3
             if keystate[pg.K_DOWN]:
-                if self.rect.bottom + self.vel_y * Game.dt <= Game.scr_h:
-                    self.vel_y = 318
+                if self.rect.bottom + self.vel_y <= Game.scr_h:
+                    self.vel_y = 4.3
             if keystate[pg.K_SPACE]:
                 self.is_firing = True   
             else:
@@ -807,9 +769,8 @@ class Player(pg.sprite.Sprite):
             self.index = 0
 
         #move player
-        self.pos[0] += self.vel_x * Game.dt
-        self.pos[1] += self.vel_y * Game.dt
-        self.rect.center = self.pos
+        self.rect.x += self.vel_x 
+        self.rect.y += self.vel_y
 
         #attack
         if self.is_firing:
@@ -838,15 +799,11 @@ class P1_thrusters(pg.sprite.Sprite):
     def __init__(self, images: list, coords: tuple):
         super().__init__()
         self.name = "P1 thrusters"
-
-        #animation
         self.images = images
-        self.image = self.images[0]
         self.index = 0
-
-        #position
         self.offset_x = -11.95
         self.offset_y = 9.5
+        self.image = self.images[self.index]
         self.rect = self.image.get_rect()
         self.rect.center = coords
 
@@ -859,48 +816,34 @@ class P1_thrusters(pg.sprite.Sprite):
         
         self.image = self.images[self.index]
         
-        #position
         self.rect.x = Game.p1.rect.center[0] + self.offset_x
         self.rect.y = Game.p1.rect.center[1] + self.offset_y
 
 class Bullet(pg.sprite.Sprite):
     def __init__(self, images: list, x, y):
         super().__init__()
-
-        #animation
         self.images = images
         self.image = self.images[0]
-        self.index = 0
-        self.fps = 6 # animation will change frame 6 times per second
-        self.frame_duration = 1 / self.fps #seconds spent in 1 frame
         self.counter = 0
-
-        #position
+        self.index = 0
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
         self.radius = self.rect.width * 0.5
-        
-        #movement
-        self.speed = 318
+        self.speed = 5.3 
 
     def update(self):
         #check for collisions: normal enemies
         for enemy in Game.enemy_group:
             if enemy.name != "Escape pod":
                 if pg.sprite.collide_circle(self, enemy):
-                    
-                    #remove sprite
+                    #collision
                     self.kill()
-        
-                    #add particles
-                    Game.particle_bullet_group.append(Particle(self.rect.center[0], self.rect.center[1] + self.speed * Game.dt))
+                    Game.particle_bullet_group.append(Particle(self.rect.center[0], self.rect.center[1] + self.speed))
 
-                    #add damage
                     enemy.hp -= 1
                     if enemy.hp < 1:
                         enemy.kill()
-                        Game.explosion_group.add(Explosion(Game.explosion_sprites, (enemy.rect.center[0] + enemy.vel_x * Game.dt, enemy.rect.center[1] + enemy.vel_y * Game.dt)))
-                    
+                        Game.explosion_group.add(Explosion(Game.explosion_sprites, (enemy.rect.center[0] + enemy.vel_x, enemy.rect.center[1] + enemy.vel_y)))
                         #add scores
                         Game.p1.score += enemy.points
 
@@ -912,13 +855,10 @@ class Bullet(pg.sprite.Sprite):
                     if Game.e_boss.in_position and not Game.e_boss.is_firing_2 and not Game.e_boss.pattern_3_moving_down:
                         if pg.sprite.collide_circle(self, enemy):
 
-                            #remove sprite
+                            #collision
                             self.kill()
+                            Game.particle_bullet_group.append(Particle(self.rect.center[0], self.rect.center[1] + self.speed))
 
-                            #add particles
-                            Game.particle_bullet_group.append(Particle(self.rect.center[0], self.rect.center[1] + self.speed * Game.dt))
-
-                            #add damage
                             enemy.hp -= 1
                             if enemy.hp < 1:
                                 Game.escape_pod = Escape_pod(Game.boss_escape_pod_img, enemy.rect.center)
@@ -927,66 +867,57 @@ class Bullet(pg.sprite.Sprite):
                                 Game.boss_dead = True
                                 Game.sound_explosion.play()
                                 Game.explosion_group.add(Explosion(Game.explosion_sprites, enemy.rect.center))
-                         
                                 #add scores
                                 Game.p1.score += enemy.points
-                         
                                 #check highscore
                                 Game.p1_highscore = Game.highscore()
 
-        #move bullets
-        self.rect.bottom -= self.speed * Game.dt
-                
         #kill sprites that left the screen
-        if self.rect.bottom <= 0:
-            self.kill()        
+        if self.rect.y > Game.scr_h or self.rect.x > Game.scr_w or self.rect.x < 0:
+            self.kill()
         
         #animation
-        self.image = self.images[self.index]
-        self.counter += Game.dt # count the time spent in this frame
+        fps = 6 #bigger number means it stays longer in one frame -> slower animation
+        self.counter += 1
 
-        if self.counter >= self.frame_duration and self.index < len(self.images) - 1:
+        if self.counter >= fps and self.index < len(self.images) - 1:
             self.counter = 0
-            self.index += 1 # switch to the next frame
             
-            #restart animation if all frames are used
-            if self.index >= len(self.images) - 1:
-                self.index = 0
+            #next image
+            self.index += 1
+            self.image = self.images[self.index]
+        
+        #animation is complete, all images have been used -> restart animation
+        if self.counter >= fps and self.index >= len(self.images) - 1:
+            self.index = 0
+            self.counter = 0
+            self.image = self.images[self.index]
+
+        #move bullets
+        self.rect.y -= self.speed
 
 class Particle():
-    def __init__(self, x, y, time = r.randint(4, 7)):
-        self.pos = [x, y]
-        self.x = self.pos[0]
-        self.y = self.pos[1]
-        self.vel_x = r.randint(0, 1200) / 10 - 60
-        self.vel_y = 120
+    def __init__(self, x, y, time = r.randint(3, 6)):
+        self.x = x
+        self.y = y
+        self.vel_x = r.randint(0, 20) / 10 - 1
+        self.vel_y = 2
         self.time = time #also acts as radius
 
     def update(self):
-        self.pos[0] += self.vel_x * Game.dt
-        self.pos[1] += self.vel_y * Game.dt
-        self.x = self.pos[0]
-        self.y = self.pos[1]
-        self.time -= 6 * Game.dt 
+        self.x += self.vel_x
+        self.y += self.vel_y
+        self.time -= 0.1
 
 class Bolt(pg.sprite.Sprite):
     def __init__(self, images: list, coords, dx = 0, dy = 0, speed = 0): 
         super().__init__()
-
-        #animation
         self.images = images
         self.image = self.images[0]
         self.index = 0
-        self.fps = 6 # animation will change frame 6 times per second
-        self.frame_duration = 1 / self.fps #seconds spent in 1 frame
         self.counter = 0
-
-        #position
         self.rect = self.image.get_rect()
-        self.pos = [coords[0], coords[1]]
-        self.rect.center = self.pos
-        
-        #movement
+        self.rect.center = coords
         self.speed = speed
         self.dx = dx
         self.dy = dy
@@ -995,77 +926,63 @@ class Bolt(pg.sprite.Sprite):
         #check for collisions
         if Game.p1.alive and not Game.game_end:
             if pg.sprite.collide_circle(self, Game.p1):
-                
-                #remove sprite
+                #collision
                 self.kill()
-                
-                #play sound
-                Game.sound_bolt_collide.play()
-
-                #add damage
                 Game.p1.hp -= 1
                 if Game.p1.hp < 1:
-                    Game.explosion_group.add(Explosion(Game.explosion_sprites, (Game.p1.rect.center[0] + Game.p1.vel_x * Game.dt , Game.p1.rect.center[1] + Game.p1.vel_y * Game.dt)))
+                    Game.explosion_group.add(Explosion(Game.explosion_sprites, (Game.p1.rect.center[0] + Game.p1.vel_x, Game.p1.rect.center[1] + Game.p1.vel_y)))
                     if Game.p1.lives > 0:
                         Game.p1.lives -= 1
                         Game.p1.hp = Game.p1.max_hp
                     else:    
                         Game.p1.alive = False
-                        Game.p1_group.empty()
+                        Game.p1.kill() 
 
-        #movement
-        self.pos[0] += self.speed * self.dx * Game.dt
-        self.pos[1] += self.speed * self.dy * Game.dt
-        self.rect.center = self.pos
+        self.rect.x += self.speed * self.dx
+        self.rect.y += self.speed * self.dy
 
         #kill sprites that left the screen
         if self.rect.y > Game.scr_h or self.rect.x > Game.scr_w or self.rect.x < 0:
             self.kill()
 
         #animation
-        self.image = self.images[self.index]
-        self.counter += Game.dt # count the time spent in this frame
+        fps = 6 #bigger number means it stays longer in one frame -> slower animation
+        self.counter += 1
 
-        if self.counter >= self.frame_duration and self.index < len(self.images):
+        if self.counter >= fps and self.index < len(self.images) - 1:
             self.counter = 0
-            self.index += 1 # switch to the next frame
             
-            #restart animation if all frames are used
-            if self.index >= len(self.images):
-                self.index = 0
+            #next image
+            self.index += 1
+            self.image = self.images[self.index]
+        
+        #animation is complete, all images have been used -> restart animation
+        if self.counter >= fps and self.index >= len(self.images) - 1:
+            self.index = 0
+            self.counter = 0
+            self.image = self.images[self.index]
 
 class Boss_ray(pg.sprite.Sprite):
     def __init__(self, images: list, coords):
         super().__init__()
-
-        #animation
         self.images = images
-        self.image = self.images[0]
-        self.index = 0
-        self.fps = 8 # animation will change frame 8 times per second
-        self.frame_duration = 1 / self.fps #seconds spent in 1 frame
-        self.counter = 0
-
-        #position
+        self.image = images[0]
         self.rect = self.image.get_rect()
         self.rect.center = (coords[0], coords[1]+self.rect.height // 2)
-
-        #hitbox
         self.hitbox = pg.Rect(self.rect.left + ((self.rect.width // 5) * 2), self.rect.top, self.rect.width - ((self.rect.width // 5) * 4), self.rect.height)
+        self.counter = 0
+        self.index = 0
         
     def update(self):
         #check for collisions
         if Game.p1.alive:
             if self.index >=8: #ray is active
                 if self.hitbox.colliderect(Game.p1): #using colliderect [instead of sprite.collide_rect] since hitbox is not of sprite class
-                    
-                    #remove sprite
+                    #collision
                     self.kill()
-                    
-                    #add damage
                     Game.p1.hp -= 10
                     if Game.p1.hp < 1:
-                        Game.explosion_group.add(Explosion(Game.explosion_sprites, (Game.p1.rect.center[0] + Game.p1.vel_x * Game.dt, Game.p1.rect.center[1] + Game.p1.vel_y * Game.dt)))
+                        Game.explosion_group.add(Explosion(Game.explosion_sprites, (Game.p1.rect.center[0] + Game.p1.vel_x, Game.p1.rect.center[1] + Game.p1.vel_y)))
                         if Game.p1.lives > 0:
                             Game.p1.lives -= 1
                             Game.p1.hp = Game.p1.max_hp
@@ -1074,90 +991,76 @@ class Boss_ray(pg.sprite.Sprite):
                             Game.p1.kill() 
 
         #animation
-        self.image = self.images[self.index]
-        self.counter += Game.dt # count the time spent in this frame
+        fps = 8 #bigger number means it stays longer in one frame -> slower animation
+        self.counter += 1
 
-        if self.counter >= self.frame_duration and self.index < len(self.images):
+        if self.counter >= fps and self.index < len(self.images) - 1:
             self.counter = 0
-            self.index += 1 # switch to the next frame
             
+            #next image
+            self.index += 1
+            self.image = self.images[self.index]
+        
         #animation is complete, all images have been used -> kill the sprite
-        if self.counter >= self.frame_duration and self.index >= len(self.images):
+        if self.counter >= fps and self.index >= len(self.images) - 1:
             self.kill()
 
 class Explosion(pg.sprite.Sprite):
     def __init__(self, images: list, coords: tuple):
         super().__init__()
-
-        #animation
         self.images = images
-        self.image = self.images[0]
         self.index = 0
-        self.fps = 20 # animation will change frame 20 times per second
-        self.frame_duration = 1 / self.fps #seconds spent in 1 frame
-        self.counter = 0
-
-        #coordinates 
+        self.image = self.images[self.index]
         if Game.boss_spawned:
             self.rect = self.image.get_rect(topleft=coords)
         else:
             self.rect = self.image.get_rect()
             self.rect.center = coords
-         
+        self.counter = 0
+        
         #play the sound
         Game.sound_explosion.play()
     
     def update(self):
+        fps = 4 #bigger number means it stays longer in one frame -> slower animation
+        self.counter += 1
 
-        #animation
-        self.image = self.images[self.index]
-        self.counter += Game.dt # count the time spent in this frame
-
-        if self.counter >= self.frame_duration and self.index < len(self.images) - 1:
+        if self.counter >= fps and self.index < len(self.images) - 1:
             self.counter = 0
-            self.index += 1 # switch to the next frame
+            
+            #next image
+            self.index += 1
+            self.image = self.images[self.index]
         
         #animation is complete, all images have been used -> kill the sprite
-        if self.counter >= self.frame_duration and self.index >= len(self.images) - 1:
+        if self.counter >= fps and self.index >= len(self.images) - 1:
             self.kill()
 
 class Weapon_up(pg.sprite.Sprite):
     def __init__(self, images: list, x, y):
         super().__init__()
-
-        #animation
         self.images = images
-        self.image = self.images[0]
         self.index = 0
-        self.fps = 5 # animation will change frame 5 times per second
-        self.frame_duration = 1 / self.fps #seconds spent in 1 frame
         self.counter = 0
+        self.image = self.images[self.index]
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.radius = self.rect.width * 0.2
+        self.vel_x = 5
+        self.vel_y = 3
+        self.speed = 10
         self.ani_last = pg.time.get_ticks()
         self.ani_cd = 400
 
-        #position
-        self.rect = self.image.get_rect()
-        self.pos = [x, y]
-        self.rect.center = self.pos
-
-        #hitbox
-        self.radius = self.rect.width * 0.2
-
-        #movement
-        self.vel_x = 300
-        self.vel_y = 180
-        self.speed = 600
-
-        #change direction if spawned to the right side of the screen
+        #if spawned to the right side of the screen
         if self.rect.x > Game.scr_w:
             self.vel_x = -self.vel_x
     
     def update(self):
         if pg.sprite.collide_circle(self, Game.p1):
-
             #collision
             Game.sound_weapon_up.play()
-            Game.p1.weapon_lvl += 1
+            Game.p1.weapon_lvl += 1 #yay!
             Game.p1.attack_cooldown -= 50
             self.kill()
 
@@ -1165,35 +1068,35 @@ class Weapon_up(pg.sprite.Sprite):
         if self.rect.top > Game.scr_h:
             self.kill()
 
+        #animation
+        fps = 5 #bigger number means it stays longer in one frame -> slower animation
+        self.counter += 1
+
+        if self.counter >= fps and self.index < len(self.images) - 1:
+            self.counter = 0
+            
+            #next image
+            self.index += 1
+            self.image = self.images[self.index]
+        
+        #animation is complete, all images have been used -> restart animation
+        if self.counter >= fps and self.index >= len(self.images) - 1:
+            self.index = 0
+            self.counter = 0
+            self.image = self.images[self.index]
+
         #target player if player is close
         if abs(self.rect.center[0] - Game.p1.rect.center[0]) <= self.rect.width * 3 and abs(self.rect.center[1] - Game.p1.rect.center[1]) <= self.rect.height * 3:
             angle = math.atan2(Game.p1.rect.y - self.rect.y, Game.p1.rect.x - self.rect.x)
             dx = math.cos(angle) 
             dy = math.sin(angle) 
-            self.pos[0] += dx * self.speed * Game.dt
-            self.pos[1] += dy * self.speed * Game.dt
-            self.rect.center = self.pos
+            self.rect.x += dx * self.speed
+            self.rect.y += dy * self.speed
 
         else:
             #move normally
-            self.pos[0] += self.vel_x * Game.dt
-            self.pos[1] += self.vel_y * Game.dt
-            self.rect.center = self.pos
-
-        #animation
-        self.image = self.images[self.index]
-        self.counter += Game.dt # count the time spent in this frame
-
-        if self.counter >= self.frame_duration and self.index < len(self.images):
-            self.counter = 0
-            self.index += 1 # switch to the next frame
-            
-            #restart animation if all frames are used
-            if self.index >= len(self.images):
-                self.index = 0
-
-        #add particles
-        Game.particle_power_up_group.append(Particle(self.rect.center[0], self.rect.center[1]))
+            self.rect.x += self.vel_x
+            self.rect.y += self.vel_y
 
 class Fighter(pg.sprite.Sprite):
     def __init__(self, images: list, x, y):
@@ -1202,8 +1105,7 @@ class Fighter(pg.sprite.Sprite):
         self.images = images
         self.image = self.images[0]
         self.rect = self.image.get_rect()
-        self.pos = [x, y]
-        self.rect.center = self.pos
+        self.rect.center = (x, y)
         self.radius = self.rect.width * 0.3
         self.is_firing = False
         self.bolt_last = pg.time.get_ticks()
@@ -1213,17 +1115,14 @@ class Fighter(pg.sprite.Sprite):
         self.shot_count = 0
         self.no_of_shots = 3
         self.vel_x = 0
-        self.vel_y = 210
+        self.vel_y = 3.5
         self.points = 180
         self.hp = 4
 
     def update(self):    
-        #movement
-        self.pos[0] += self.vel_x * Game.dt
-        self.pos[1] += self.vel_y * Game.dt
-        self.rect.center = self.pos
-
-        #start firing
+         #move enemy
+        self.rect.x += self.vel_x 
+        self.rect.y += self.vel_y
         if self.rect.top >= 0:
             self.is_firing = True
 
@@ -1234,7 +1133,7 @@ class Fighter(pg.sprite.Sprite):
             now = pg.time.get_ticks()
             if now - self.bolt_last >= self.shots_cooldown and self.shot_count < self.no_of_shots:
                 self.bolt_last = now
-                Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x * Game.dt, self.rect.center[1] + self.vel_y * Game.dt), dx, dy, 318))
+                Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x, self.rect.center[1] + self.vel_y), dx, dy, 5.3))
                 self.shot_count +=1
             if now - self.attack_last >= self.attack_cooldown:
                 self.attack_last = now
@@ -1248,15 +1147,14 @@ class Droid(pg.sprite.Sprite):
         self.index = 0
         self.image = self.images[self.index]
         self.rect = self.image.get_rect()
-        self.pos = [x, y]
-        self.rect.center = self.pos
+        self.rect.center = (x, y)
         self.radius = self.rect.width * 0.3
         self.counter = 0
         self.is_firing = False
         self.bolt_last = pg.time.get_ticks()
         self.attack_cooldown = 800
-        self.vel_x = 600
-        self.vel_y = 600
+        self.vel_x = 1
+        self.vel_y = 1
         self.points = 225
         self.hp = 5
         self.spawn = spawn
@@ -1266,7 +1164,7 @@ class Droid(pg.sprite.Sprite):
     def update(self):
         #animation
         fps = 8 #bigger number means it stays longer in one frame -> slower animation
-        self.counter += Game.dt
+        self.counter += 1
 
         if self.counter >= fps and self.index < len(self.images) - 1:
             self.counter = 0
@@ -1286,9 +1184,8 @@ class Droid(pg.sprite.Sprite):
             self.is_firing = True
         
         #movement
-        self.pos[0] += self.vel_x * Game.dt
-        self.pos[1] += self.vel_y * Game.dt
-        self.rect.center = self.pos
+        self.rect.x += self.vel_x
+        self.rect.y += self.vel_y
         
         #attack
         if self.is_firing:
@@ -1298,7 +1195,7 @@ class Droid(pg.sprite.Sprite):
                 angle = math.atan2(Game.p1.rect.y - self.rect.y, Game.p1.rect.x - self.rect.x)
                 dx = math.cos(angle) 
                 dy = math.sin(angle) 
-                Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x * Game.dt, self.rect.center[1] + self.vel_y * Game.dt), dx, dy, 318))
+                Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x, self.rect.center[1] + self.vel_y), dx, dy, 5.3))
 
 class Worm(pg.sprite.Sprite):
     def __init__(self, images: list, x, y):
@@ -1308,15 +1205,14 @@ class Worm(pg.sprite.Sprite):
         self.index = 0
         self.image = self.images[self.index]
         self.rect = self.image.get_rect()
-        self.pos = [x, y]
-        self.rect.center = self.pos
+        self.rect.center = (x, y)
         self.radius = self.rect.width * 0.3
         self.move_left = False
         self.move_right = False
         
         #movement pattern
-        self.vel_x = 90
-        self.vel_y = 120
+        self.vel_x = 1.5
+        self.vel_y = 2
         self.midpoint = x 
         self.travel = self.rect.width
         if self.rect.x < Game.scr_w // 2:
@@ -1338,7 +1234,7 @@ class Worm(pg.sprite.Sprite):
     def update(self):
         #animation
         fps = 8 #bigger number means it stays longer in one frame -> slower animation
-        self.counter += Game.dt
+        self.counter += 1
 
         if self.counter >= fps and self.index < len(self.images) - 1:
             self.counter = 0
@@ -1369,14 +1265,11 @@ class Worm(pg.sprite.Sprite):
                 self.move_left = True
                 self.vel_x = -abs(self.vel_x)
 
-        #movement
-        self.pos[0] += self.vel_x * Game.dt
-        self.pos[1] += self.vel_y * Game.dt
-        self.rect.center = self.pos
-        
         #start firing
         if self.rect.top > 0:
             self.is_firing = True
+        self.rect.x += self.vel_x
+        self.rect.y += self.vel_y
         
         #attack
         if self.is_firing:
@@ -1388,47 +1281,34 @@ class Worm(pg.sprite.Sprite):
                     radians = math.radians(angle)
                     dir_x = math.cos(radians)
                     dir_y = math.sin(radians)
-                    Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x * Game.dt, self.rect.center[1] + self.vel_y * Game.dt), dir_x, dir_y, 318))
+                    Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x, self.rect.center[1] + self.vel_y), dir_x, dir_y, 5.3))
 
 class Boss(pg.sprite.Sprite):
     def __init__(self, img_ship: list, x, y):
         super().__init__()
         self.name = "Boss"
-        
-        #animation
         self.img_ship = img_ship
         self.idx_ship = 0
         self.image = self.img_ship[self.idx_ship]
         self.rect = self.image.get_rect()
-        self.stages = 5 
-        self.explosions_cooldown = 200
-        self.stage_last = 0
-
-        #random explosions
-        self.r_explosion_cooldown = 450
-        self.r_explosion_last = pg.time.get_ticks()
-        
-        #position
-        self.pos = [x, y]
-        self.rect.center = self.pos
-
-        #hitbox
-        self.radius = self.rect.width * 0.35
+        self.rect.center = (x, y)
+        self.radius = self.rect.width * 0.4
+        self.in_position = False
     
         #speed at start
         self.vel_x = 0
-        self.vel_y = 60
-
-        #stats
+        self.vel_y = 1
         self.points = 15000
         self.max_hp = 600 # ship maximum health
         self.hp = 600 # ship current health
+        self.stages = 5 
+        self.explosions_cooldown = 200
+        self.stage_last = 0
 
         #hand out power ups
         self.spawn_power_ups = True
     
         #pattern 1 (bolts)
-        self.in_position = False
         self.is_firing_1 = False 
         self.pattern_1_cooldown = 5000
         self.pattern_1_atk_last = pg.time.get_ticks()
@@ -1453,6 +1333,10 @@ class Boss(pg.sprite.Sprite):
         self.pattern_3_moving_up = True
         self.pattern_3_moving_down = False
         self.pattern_3_in_position = False
+
+        #random explosions
+        self.r_explosion_cooldown = 450
+        self.r_explosion_last = pg.time.get_ticks()
 
     def explosions(self):
         boss_x, boss_y = self.rect.center
@@ -1502,7 +1386,7 @@ class Boss(pg.sprite.Sprite):
         #start patterns
         if not self.in_position:
             if self.rect.y < Game.scr_h // 5:
-                self.rect.y += self.vel_y * Game.dt
+                self.rect.y += self.vel_y
 
         if self.rect.y >= Game.scr_h // 5:
             self.in_position = True
@@ -1531,9 +1415,8 @@ class Boss(pg.sprite.Sprite):
                 self.r_explosion_cooldown = 350  
         
         #movement
-        self.pos[0] += self.vel_x * Game.dt
-        self.pos[1] += self.vel_y * Game.dt
-        self.rect.center = self.pos
+        self.rect.y += self.vel_y
+        self.rect.x += self.vel_x
 
         #attack
         if self.is_firing_1:
@@ -1567,8 +1450,8 @@ class Boss(pg.sprite.Sprite):
                     radians = math.radians(angle)
                     dir_x = math.cos(radians)
                     dir_y = math.sin(radians)
-                    Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x * Game.dt, self.rect.center[1] + self.vel_y * Game.dt), dir_x, dir_y, 318))
-                self.pattern_1_shot_count += 1
+                    Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x, self.rect.center[1] + self.vel_y), dir_x, dir_y, 5.3))
+                self.pattern_1_shot_count +=1
             if now - self.pattern_1_last >= self.pattern_1_cooldown:
                 self.pattern_1_last = now
                 self.pattern_1_shot_count = 0
@@ -1583,7 +1466,7 @@ class Boss(pg.sprite.Sprite):
             #moving up
             if self.pattern_2_moving_up:
                 if self.rect.bottom > -1:
-                    self.vel_y = -300
+                    self.vel_y = -5
                 else:
                     self.vel_y = 0
                     self.pattern_2_moving_up = False
@@ -1612,7 +1495,7 @@ class Boss(pg.sprite.Sprite):
         #moving up
         if self.pattern_3_moving_up:
             if self.rect.bottom > -1:
-                self.vel_y = -300
+                self.vel_y = -5
             else:
                 self.vel_y = 0
                 self.pattern_3_moving_up = False
@@ -1622,7 +1505,7 @@ class Boss(pg.sprite.Sprite):
         #moving to position (center)
         if self.pattern_3_moving_down:
             if self.rect.y < Game.scr_h // 9:
-                self.vel_y = 300
+                self.vel_y = 5
             else:
                 self.vel_y = 0
                 self.pattern_3_moving_down = False
@@ -1679,7 +1562,7 @@ class Boss(pg.sprite.Sprite):
             now = pg.time.get_ticks()
             if now - self.pattern_3_last >= self.pattern_3_cooldown:
                 self.pattern_3_last = now
-                Game.bolt_group.add(Bolt(Game.bolt_sprites, coords, dx, dy, 318))
+                Game.bolt_group.add(Bolt(Game.bolt_sprites, coords, dx, dy, 5.3))
                 
 class Boss_thrusters(pg.sprite.Sprite):
     def __init__(self, images: list):
@@ -1697,10 +1580,9 @@ class Boss_thrusters(pg.sprite.Sprite):
         self.ani_cd = 400
 
     def update(self):
-        
-        #animation
+          #animation
         fps = 10 #bigger number means it stays longer in one frame -> slower animation
-        self.counter += Game.dt
+        self.counter += 1
 
         if self.counter >= fps and self.index < len(self.images) - 1:
             self.counter = 0
@@ -1724,12 +1606,13 @@ class Escape_pod(pg.sprite.Sprite):
         self.name = "Escape pod"
         self.image = image
         self.rect = self.image.get_rect()
-        self.pos = [coords[0], coords[1]]
-        self.rect.center = self.pos
+        self.rect.center = coords
         self.cooldown = 700
         self.last = pg.time.get_ticks()
         self.is_moving = False
-        self.speed = 318
+        self.speed = 5.3 #same as player ship speed
+        self.vel_x = self.speed
+        self.vel_y = -self.speed
         self.sound_played = False
     
     def update(self):
@@ -1737,9 +1620,8 @@ class Escape_pod(pg.sprite.Sprite):
         if now - self.last >= self.cooldown:
             self.is_moving = True
         if self.is_moving:
-            self.pos[0] += self.speed * Game.dt
-            self.pos[1] += self.speed * Game.dt
-            self.rect.center = self.pos
+            self.rect.x += self.vel_x
+            self.rect.y += self.vel_y
             if not self.sound_played:
                 Game.sound_escape_pod.play()
                 self.sound_played = True       
