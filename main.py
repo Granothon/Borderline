@@ -52,6 +52,7 @@ class Main():
         #set game state
         self.game_over = False
         self.game_end = False
+        self.game_restart = False
         
         #sprite groups
         self.menu_group = pg.sprite.Group()
@@ -412,6 +413,9 @@ class Main():
                 if not Game.p1.alive:
                     if event.key == pg.K_r:
                         self.reset()
+                        self.game_restart = True
+                        self.instructions = False
+                        self.game_begin = True
                         self.run()
 
     def update(self):
@@ -529,9 +533,9 @@ class Main():
         
         self.bg_i += 0  #at the moment it looks best when the real background is not scrolling
         if not self.boss_spawned:
-            self.bg_back_i += 30 * self.dt
-            self.bg_middle_i += 60 * self.dt
-            self.bg_front_i += 150 * self.dt
+            self.bg_back_i += 31 * self.dt
+            self.bg_middle_i += 61 * self.dt
+            self.bg_front_i += 151 * self.dt
 
         #draw player
         self.p1_group.draw(self.scr)
@@ -603,7 +607,7 @@ class Main():
                 self.game_begin = True
 
         #draw instructions animation
-        if self.p1.score < 1:
+        if self.p1.score < 1 and not self.game_restart:
             self.menu_group.draw(self.scr)
 
             for ship in self.menu_group:

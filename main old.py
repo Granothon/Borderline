@@ -473,17 +473,17 @@ class Main():
         #draw the parallex background layers
         self.scr.fill((0,0,0))
         
-        self.scr.blit(self.bg, (0, self.bg_i))
-        self.scr.blit(self.bg, (0, -self.scr_h + self.bg_i))
+        self.scr.blit(self.bg, (0, self.bg_i * self.dt))
+        self.scr.blit(self.bg, (0, -self.scr_h + self.bg_i * self.dt))
         
-        self.scr.blit(self.bg_back_layer, (0, self.bg_back_i))
-        self.scr.blit(self.bg_back_layer, (0, -self.scr_h + self.bg_back_i))
+        self.scr.blit(self.bg_back_layer, (0, self.bg_back_i * self.dt))
+        self.scr.blit(self.bg_back_layer, (0, -self.scr_h + self.bg_back_i * self.dt))
 
-        self.scr.blit(self.bg_middle_layer, (0, self.bg_middle_i))
-        self.scr.blit(self.bg_middle_layer, (0, -self.scr_h + self.bg_middle_i))
+        self.scr.blit(self.bg_middle_layer, (0, self.bg_middle_i * self.dt))
+        self.scr.blit(self.bg_middle_layer, (0, -self.scr_h + self.bg_middle_i * self.dt))
         
-        self.scr.blit(self.bg_front_layer, (0, self.bg_front_i))
-        self.scr.blit(self.bg_front_layer, (0, -self.scr_h + self.bg_front_i))
+        self.scr.blit(self.bg_front_layer, (0, self.bg_front_i * self.dt))
+        self.scr.blit(self.bg_front_layer, (0, -self.scr_h + self.bg_front_i * self.dt))
 
         #get background scrolling
         if self.bg_i == self.scr_h:
