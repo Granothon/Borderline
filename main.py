@@ -1,4 +1,5 @@
 #Project Borderline: 2d Space shooter
+from numpy import dtype
 import pygame as pg
 from pygame import Color
 import random as r
@@ -24,7 +25,7 @@ class Main():
 
         #set game display name and icon
         pg.display.set_caption("Borderline")
-        icon = pg.image.load('assets/ships/ship 01/1.png').convert_alpha()
+        icon = pg.image.load('assets/ships/1.png').convert_alpha()
         pg.display.set_icon(icon)
 
         #set fps
@@ -64,6 +65,7 @@ class Main():
         self.power_up_group = pg.sprite.Group()
 
         #particle groups
+        self.particle_inst_anim_group = []
         self.particle_bullet_group = []
         self.particle_power_up_group = []
 
@@ -74,7 +76,7 @@ class Main():
         self.p1_thrust_sprites = []
 
         for i in range(1,4):
-            image = pg.image.load(f"assets/ships/ship 01/{i}.png").convert_alpha()
+            image = pg.image.load(f"assets/ships/{i}.png").convert_alpha()
             image = pg.transform.scale(image, (p1_size, p1_size))
             self.p1_sprites.append(image)
         
@@ -83,10 +85,27 @@ class Main():
             image = pg.transform.scale(image, (thrust_size, thrust_size))
             self.p1_thrust_sprites.append(image)
         
-        self.p1_image_menu = pg.image.load("assets/ships/ship 01/ship_menu.png").convert_alpha()
+        #load starting animation images
+        self.p1_image_menu = pg.image.load("assets/ships/ship_menu.png").convert_alpha()
         self.p1_image_menu = pg.transform.scale(self.p1_image_menu, (150, 150))
+        
+        #set start animation status
+        self.start_animation_finished = False
+
+        #load gui images
         self.hp_heart = pg.image.load("assets/player/heart.png").convert_alpha()
         self.hp_heart = pg.transform.scale(self.hp_heart, (30 * 1.22, 30))
+
+        #load instructions background animation images
+        self.inst_bg_animation_sprites = []
+        inst_ship_size = 80
+        img_ship = pg.image.load(f"assets/ships/inst_ship.png").convert_alpha()
+        img_ship = pg.transform.scale(img_ship, (inst_ship_size, inst_ship_size))
+        self.inst_bg_animation_sprites.append(img_ship)
+
+        #init animated ships - using player class
+        self.inst_bg_ship_left = Inst_animation_ship(self.inst_bg_animation_sprites, (self.scr_w // 2 - 200, self.scr_h + inst_ship_size))
+        self.inst_bg_ship_right = Inst_animation_ship(self.inst_bg_animation_sprites, (self.scr_w // 2 + 200, self.scr_h + inst_ship_size))
         
         #init player
         p1_starting_coords = (self.scr_w // 2, self.scr_h - (self.scr_h // 10))
@@ -102,7 +121,7 @@ class Main():
 
         #add start animation
         self.menu_animation = Ship_animation_menu(self.p1_image_menu, -100, (self.scr_w // 2) - 200)
-        self.menu_group.add(self.menu_animation)
+        self.menu_group.add(self.menu_animation, self.inst_bg_ship_left, self.inst_bg_ship_right)
         #instructions page
         self.instructions = True
         self.game_begin = False #this will wait for instructions to be passed first
@@ -276,7 +295,7 @@ class Main():
         self.dt = self.time - last_time
         self.scr.fill((0,0,0))
         self.scr.blit(self.bg, (0, 0))
-        if len(self.menu_group) != 0:
+        if not self.start_animation_finished:
             #start animation
             self.menu_group.draw(self.scr)
             self.menu_animation.update()
@@ -297,6 +316,7 @@ class Main():
                     exit()
                 elif event.key == pg.K_SPACE:
                     #skip the animation and start the game
+                    self.start_animation_finished = True
                     self.run()
 
     #main loop
@@ -379,11 +399,6 @@ class Main():
             self.e2_spawn_last = now
             location = r.choice([-50,self.scr_w + 50])
             self.power_up_group.add(Weapon_up(self.weapon_up_sprites, location, self.scr_h // 4))
-
-    def update_fps(self):
-        fps = str(int(self.clock.get_fps()))
-        fps_text = self.font_scores.render(f"{fps} fps", 1, pg.Color("white"))
-        return fps_text
         
     def process_events(self):
         for event in pg.event.get():
@@ -534,6 +549,14 @@ class Main():
             self.eyes_of_ra_group.draw(self.scr)
 
         #draw particles
+        for particle in self.particle_inst_anim_group[:]:
+            color = r.choice(["#C8F2F7", "#55D5E6", "#0B8FA1"])
+            pg.draw.circle(self.scr, Color(color), (particle.x, particle.y), particle.time)
+            particle.update()
+
+            if particle.time <= 0:
+                self.particle_inst_anim_group.remove(particle)
+
         for particle in self.particle_bullet_group[:]:
             color = r.choice(["#a9420f", "#f0d5bc", "#6d412e", "#dfae7f", "#e87e0d", "#fbcf85", "#293d43", "#f9b631", "#7c9ca5", "#a6693d", "#d9894d", "#3c5964"])
             pg.draw.circle(self.scr, Color(color), (particle.x, particle.y), particle.time)
@@ -574,11 +597,35 @@ class Main():
                 #moving on to next text
                 self.inst_txt_idx += 1 
             
-            if self.inst_txt_idx >= len(self.inst_txt) - 1:
+            if self.inst_txt_idx >= len(self.inst_txt):
                 #all texts have been displayed. Start spawning of enemies.
                 self.instructions = False
-        self.game_begin = True #TODO: is this here? or animations..?
-        
+                self.game_begin = True
+
+        #draw instructions animation
+        if self.p1.score < 1:
+            self.menu_group.draw(self.scr)
+
+            for ship in self.menu_group:
+                if ship.name != "Start animation":
+
+                    ship.update()
+
+                    if ship.pos[1] >= self.scr_h - (self.scr_h // 10) and self.inst_txt_idx < 3:
+                        ship.vel_y = -75
+                    else:
+                        if self.inst_txt_idx <= 4:
+                            ship.vel_y = 0
+                        else:
+                            ship.vel_y = 75
+
+                            if ship.rect.top > self.scr_h:
+                                self.menu_group.empty()
+                
+                else:
+                    #if start animation was skipped kill old sprite
+                    ship.kill() 
+            
         #draw scores
         self.scr.blit(self.p1_highscore_text, (20, 40))
         self.scr.blit(self.p1_score_text, (20, 40 + self.p1_score_text.get_height()))
@@ -588,7 +635,7 @@ class Main():
             self.scr.blit(self.txt_escape_pod_display, (self.escape_pod.rect.center[0] - self.txt_escape_pod_length, self.escape_pod.rect.center[1] - self.escape_pod.rect.height))
         
         #draw player hp
-        if not self.game_end:
+        if not self.game_end and not self.instructions:
             hp_offset_x = 12.5
             hp_offset_y = 70
             hp_length = self.p1.image.get_size() [0] * 0.20 * self.p1.hp
@@ -616,9 +663,6 @@ class Main():
         #draw powerups
         self.power_up_group.draw(self.scr)
  
-        #draw fps 
-        self.scr.blit(self.update_fps(), (self.scr_w - 125,self.scr_h - 100))
-
         #draw game over
         if not self.p1.alive: 
             self.game_over = True
@@ -719,7 +763,7 @@ class Ship_animation_menu(pg.sprite.Sprite):
         if self.play_1:
             Game.sound_flight.play()
             self.play_1 = False
-        
+
         #destroy sprite when leaving screens
         if self.rect.x > 1080 and not self.turned_1:
             Game.sound_flight.play()
@@ -727,14 +771,46 @@ class Ship_animation_menu(pg.sprite.Sprite):
             self.vel_x = -self.vel_x
             self.image = pg.transform.rotate(self.image, 180)
             self.turned_1 = True
-        if self.rect.x < -350 and self.turned_1:
+        if self.rect.x < -350 and self.turned_1 and not self.turned_2:
             Game.sound_flight.play()
             self.pos[1] += 300
             self.vel_x = -self.vel_x
             self.image = pg.transform.rotate(self.image, 180)
             self.turned_2 = True
         if self.rect.x > 1080 + 150 and self.turned_2:
+            self.vel_x = 0
+            Game.start_animation_finished = True
             self.kill()
+
+class Inst_animation_ship(pg.sprite.Sprite):
+    def __init__(self, images: list, coords: tuple):
+        super().__init__()
+        self.name = "Instructions animation ship"
+
+        #animation
+        self.images = images
+        self.index = 0
+        self.image = self.images[self.index]
+
+        #position
+        self.rect = self.image.get_rect()
+        self.pos = [coords[0], coords[1]]
+        self.rect.center = self.pos
+
+        #movement
+        self.vel_x = 0
+        self.vel_y = 0
+    
+    def update(self):         
+
+        #add particles
+        Game.particle_inst_anim_group.append(Particle(self.rect.center[0] + 10 + self.vel_x * Game.dt, self.rect.center[1] + 36 + self.vel_y * Game.dt, r.randint(3, 6)))  
+        Game.particle_inst_anim_group.append(Particle(self.rect.center[0] - 9 + self.vel_x * Game.dt, self.rect.center[1] + 36 + self.vel_y * Game.dt, r.randint(3, 6)))  
+        
+        #move player
+        self.pos[0] += self.vel_x * Game.dt
+        self.pos[1] += self.vel_y * Game.dt
+        self.rect.center = self.pos
 
 class Player(pg.sprite.Sprite):
     def __init__(self, images: list, coords: tuple):
@@ -781,7 +857,7 @@ class Player(pg.sprite.Sprite):
         keystate = pg.key.get_pressed()
         
         #make the player unable to leave the screen while moving
-        if self.alive and not Game.game_end:
+        if self.alive and not Game.game_end and not Game.instructions:
             if keystate[pg.K_LEFT]:
                 if self.rect.left - self.vel_x * Game.dt >= 0:
                     self.vel_x = -318
@@ -1553,8 +1629,6 @@ class Boss(pg.sprite.Sprite):
         self.pos[0] += self.vel_x * Game.dt
         self.pos[1] += self.vel_y * Game.dt
         self.rect.center = self.pos
-
-        print(f"{self.rect.center=}")
 
         #attack
         if self.is_firing_1:
