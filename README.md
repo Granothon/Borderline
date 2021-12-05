@@ -7,5 +7,5 @@ Code, music, sounds and design by Risto Ruuskanen (Granothon#0892)
 -different attack and movement patterns
 -power ups
 -parallax scrolling background
--animations
+-animations, particles
 -sfx and music
