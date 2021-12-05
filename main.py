@@ -409,7 +409,7 @@ class Main():
                 if event.key == pg.K_ESCAPE:
                     pg.quit()
                     exit()
-                if not Game.p1.alive:
+                if self.game_over:
                     if event.key == pg.K_r:
                         self.reset()
                         self.game_restart = True
@@ -501,7 +501,7 @@ class Main():
         return surf
 
     def draw(self):
-        #draw the parallex background layers
+        #draw the parallax background layers
         self.scr.fill((0,0,0))
         
         self.scr.blit(self.bg, (0, self.bg_i))
@@ -532,9 +532,9 @@ class Main():
         
         self.bg_i += 0  #at the moment it looks best when the real background is not scrolling
         if not self.boss_spawned:
-            self.bg_back_i += 31 * self.dt
-            self.bg_middle_i += 61 * self.dt
-            self.bg_front_i += 151 * self.dt
+            self.bg_back_i += 30 * self.dt
+            self.bg_middle_i += 60 * self.dt
+            self.bg_front_i += 150 * self.dt
 
         #draw player
         self.p1_group.draw(self.scr)
@@ -733,6 +733,7 @@ class Main():
             now = pg.time.get_ticks()
             if now - self.game_over_last > self.game_over_cd:
                 self.game_over = True
+        
 
         pg.display.flip()
 
