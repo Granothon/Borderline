@@ -517,13 +517,13 @@ class Main():
         self.scr.blit(self.bg_front_layer, (0, -self.scr_h + self.bg_front_i))
 
         #get background scrolling
-        if self.bg_i == self.scr_h:
+        if self.bg_i >= self.scr_h:
             self.bg_i = 0
-        if self.bg_back_i == self.scr_h:
+        if self.bg_back_i >= self.scr_h:
             self.bg_back_i = 0
-        if self.bg_middle_i == self.scr_h:
+        if self.bg_middle_i >= self.scr_h:
             self.bg_middle_i = 0
-        if self.bg_front_i == self.scr_h:
+        if self.bg_front_i >= self.scr_h:
             self.bg_front_i = 0
 
         #set scrolling speed for each layer: 
@@ -733,7 +733,6 @@ class Main():
             now = pg.time.get_ticks()
             if now - self.game_over_last > self.game_over_cd:
                 self.game_over = True
-        
 
         pg.display.flip()
 
