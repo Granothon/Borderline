@@ -82,7 +82,7 @@ class Main():
             self.p1_sprites.append(image)
         
         for i in range(1,3):
-            image = pg.image.load(f"assets/ships/thrust/01/{i}.png").convert_alpha()
+            image = pg.image.load(f"assets/ships/thrust/{i}.png").convert_alpha()
             image = pg.transform.scale(image, (thrust_size, thrust_size))
             self.p1_thrust_sprites.append(image)
         
