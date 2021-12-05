@@ -1,5 +1,4 @@
 #Project Borderline: 2d Space shooter
-from numpy import dtype
 import pygame as pg
 from pygame import Color
 import random as r
