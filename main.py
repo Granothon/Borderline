@@ -1287,12 +1287,20 @@ class Fighter(pg.sprite.Sprite):
     def __init__(self, images: list, x, y):
         super().__init__()
         self.name = "Fighter"
+
+        #animation
         self.images = images
         self.image = self.images[0]
+
+        #position
         self.rect = self.image.get_rect()
         self.pos = [x, y]
         self.rect.center = self.pos
+
+        #hitbox
         self.radius = self.rect.width * 0.3
+
+        #attack
         self.is_firing = False
         self.bolt_last = pg.time.get_ticks()
         self.attack_last = pg.time.get_ticks()
@@ -1300,8 +1308,12 @@ class Fighter(pg.sprite.Sprite):
         self.shots_cooldown = 190
         self.shot_count = 0
         self.no_of_shots = 3
+
+        #movement
         self.vel_x = 0
         self.vel_y = 210
+
+        #stats
         self.points = 180
         self.hp = 4
 
@@ -1660,17 +1672,22 @@ class Boss(pg.sprite.Sprite):
             now = pg.time.get_ticks()
             if now - self.pattern_1_atk_last >= self.pattern_1_atk_speed and self.pattern_1_shot_count < self.pattern_1_no_of_shots:
                 self.pattern_1_atk_last = now
+                
+                #divide circle to get directions for bolts
                 angle_step = 360 // 24
-                for angle in range(0, 180 + 1, angle_step): #half a circle
+                for angle in range(0, 180 + 1, angle_step): #get half a circle
                     radians = math.radians(angle)
                     dir_x = math.cos(radians)
                     dir_y = math.sin(radians)
                     Game.bolt_group.add(Bolt(Game.bolt_sprites, (self.rect.center[0] + self.vel_x * Game.dt, self.rect.center[1] + self.vel_y * Game.dt), dir_x, dir_y, 318))
                 self.pattern_1_shot_count += 1
+            
+            #attack again
             if now - self.pattern_1_last >= self.pattern_1_cooldown:
                 self.pattern_1_last = now
                 self.pattern_1_shot_count = 0
             else:
+                #spawn power up after first attack finishes
                 if self.spawn_power_ups:
                     Game.spawn_weapon_up()
                     self.spawn_power_ups = False
