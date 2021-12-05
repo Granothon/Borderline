@@ -669,6 +669,9 @@ class Main():
         #draw game over
         if not self.p1.alive: 
             self.game_over = True
+            
+            #check highscore
+            Game.p1_highscore = Game.highscore()
         
         if self.game_over:
             self.scr.blit(self.txt_game_over_display, (self.scr_w // 2 -self.font.size(f'{self.txt_game_over}')[0] // 2, self.scr_h // 2))
