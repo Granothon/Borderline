@@ -13,19 +13,17 @@ class Main():
     
     def reset(self):
         pg.init()
-        #set screen size
-        #game screen
-        self.scr = pg.display.set_mode((864, 1080))
-        #whole screen including gui
-        #self.display = pg.display.set_mode((1980, 1080))
-        
-        #get width and height
-        self.scr_w, self.scr_h = pg.display.get_surface().get_size()
 
-        #set game display name and icon
+        #set screen size
+        self.scr = pg.display.set_mode((864, 1080))
+
+        #set game display name and icon.
         pg.display.set_caption("Borderline")
         icon = pg.image.load('assets/ships/1.png').convert_alpha()
         pg.display.set_icon(icon)
+        
+        #get width and height
+        self.scr_w, self.scr_h = pg.display.get_surface().get_size()
 
         #set fps
         self.clock = pg.time.Clock()
@@ -1874,6 +1872,10 @@ class Escape_pod(pg.sprite.Sprite):
 if __name__ == "__main__":
     Game = Main()
     Game.menu()
+
+#suggestions:
+
+#when that weapon upgrade come, there whould be text like "Grab Weapon Upgrade"
 
 #CODEBANK
 if False:
