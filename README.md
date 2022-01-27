@@ -1,4 +1,4 @@
-![Borderline][image.png]
+[image]: image.png
 #Borderline V. 1.1
 
 Art / assets by Luis Zuno (@ansimuz).
@@ -13,4 +13,4 @@ Code, music, sounds and design by Risto Ruuskanen (Granothon#0892)
 - animations, particles
 - sfx and music
 
-[Borderline]
+![Screenshot from Borderline][image]
