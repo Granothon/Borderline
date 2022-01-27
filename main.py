@@ -1350,7 +1350,7 @@ class Droid(pg.sprite.Sprite):
         self.images = images
         self.image = self.images[0]
         self.index = 0
-        self.fps = 8 # animation will change frame 5 times per second
+        self.fps = 8 # animation will change frame 8 times per second
         self.frame_duration = 1 / self.fps #seconds spent in 1 frame
         self.counter = 0
 
